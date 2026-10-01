@@ -33,9 +33,11 @@ export function NoteCanvas({ initialData, onChange }: NoteCanvasProps) {
       { source: 'user', scope: 'document' }
     )
   }
-
-  return (
-    <div style={{ position: 'relative', width: '100%', height: '600px' }}>
+    return (
+    <div
+      className="tldraw-wrapper"
+      style={{ position: 'relative', width: '100%', height: '600px' }}
+    >
       <Tldraw onMount={handleMount} />
     </div>
   )

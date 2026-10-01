@@ -18,3 +18,7 @@ body {
   color: var(--foreground);
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
 }
+/* Инверсия холста tldraw для тёмной темы */
+.dark .tldraw-wrapper {
+  filter: invert(1) hue-rotate(180deg);
+}
