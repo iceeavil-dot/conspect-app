@@ -30,6 +30,7 @@ export async function proxy(request: NextRequest) {
   const isAuthPage = request.nextUrl.pathname.startsWith('/login')
     || request.nextUrl.pathname.startsWith('/register')
     || request.nextUrl.pathname === '/'
+    || request.nextUrl.pathname.startsWith('/auth')
 
   if (!user && !isAuthPage) {
     const url = request.nextUrl.clone()
@@ -48,6 +49,6 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/((?!_next/static|_next/image|favicon.ico|auth|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }

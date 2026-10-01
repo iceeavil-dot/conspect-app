@@ -3,17 +3,22 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { Header } from '@/components/layout/header'
 
 export default function NotesPage() {
   const router = useRouter()
-  const [email, setEmail] = useState<string | null>(null)
+  const [displayName, setDisplayName] = useState('...')
 
   useEffect(() => {
     const supabase = createClient()
     supabase.auth.getUser().then(({ data }) => {
-      setEmail(data.user?.email ?? null)
+      if (!data.user) {
+        router.push('/login')
+        return
+      }
+      setDisplayName(data.user.email?.split('@')[0] ?? 'гость')
     })
-  }, [])
+  }, [router])
 
   async function handleLogout() {
     const supabase = createClient()
@@ -23,26 +28,26 @@ export default function NotesPage() {
   }
 
   return (
-    <main className="min-h-screen p-6 bg-white dark:bg-black">
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-2xl font-semibold text-black dark:text-white">
-          Мои заметки
-        </h1>
-        <button
-          onClick={handleLogout}
-          className="text-sm text-gray-600 dark:text-gray-400 hover:text-black dark:hover:text-white"
-        >
-          Выйти
-        </button>
-      </div>
+    <div className="min-h-screen bg-white dark:bg-black">
+      <Header />
 
-      <p className="text-gray-600 dark:text-gray-400">
-        Привет, {email ?? '...'}
-      </p>
+      <main className="px-4 md:px-6 py-6">
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-xl font-semibold text-black dark:text-white">
+            Привет, {displayName}
+          </h1>
+          <button
+            onClick={handleLogout}
+            className="text-sm text-gray-600 dark:text-gray-400 hover:text-black dark:hover:text-white"
+          >
+            Выйти
+          </button>
+        </div>
 
-      <p className="text-gray-500 dark:text-gray-500 mt-4 text-sm">
-        Здесь будут твои заметки, календарь, планер и трекер привычек.
-      </p>
-    </main>
+        <p className="text-sm text-gray-500 dark:text-gray-500">
+          Здесь будет сетка заметок.
+        </p>
+      </main>
+    </div>
   )
 }
