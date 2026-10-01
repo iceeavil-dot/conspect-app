@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Header } from '@/components/layout/header'
+import { NotesGrid } from '@/components/notes/notes-grid'
 
 export default function NotesPage() {
   const router = useRouter()
@@ -44,9 +45,7 @@ export default function NotesPage() {
           </button>
         </div>
 
-        <p className="text-sm text-gray-500 dark:text-gray-500">
-          Здесь будет сетка заметок.
-        </p>
+        <NotesGrid />
       </main>
     </div>
   )
