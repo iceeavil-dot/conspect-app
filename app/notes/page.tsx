@@ -2,13 +2,18 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { Plus } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { Header } from '@/components/layout/header'
 import { NotesGrid } from '@/components/notes/notes-grid'
+import { CreateNoteModal } from '@/components/notes/create-note-modal'
+import { createNote } from '@/lib/notes'
 
 export default function NotesPage() {
   const router = useRouter()
   const [displayName, setDisplayName] = useState('...')
+  const [modalOpen, setModalOpen] = useState(false)
+  const [refreshKey, setRefreshKey] = useState(0)
 
   useEffect(() => {
     const supabase = createClient()
@@ -28,6 +33,14 @@ export default function NotesPage() {
     router.refresh()
   }
 
+  async function handleCreateNote(title: string) {
+    const note = await createNote(title)
+    if (note) {
+      // Заставляем сетку перезагрузиться
+      setRefreshKey((k) => k + 1)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-white dark:bg-black">
       <Header />
@@ -45,8 +58,24 @@ export default function NotesPage() {
           </button>
         </div>
 
-        <NotesGrid />
+        <NotesGrid key={refreshKey} />
       </main>
+
+      {/* Круглая кнопка "+" */}
+      <button
+        onClick={() => setModalOpen(true)}
+        className="fixed bottom-6 right-6 z-40 w-14 h-14 rounded-full bg-black dark:bg-white text-white dark:text-black shadow-lg hover:scale-105 active:scale-95 transition-transform flex items-center justify-center"
+        title="Создать заметку"
+      >
+        <Plus size={26} strokeWidth={2.5} />
+      </button>
+
+      {/* Модалка создания */}
+      <CreateNoteModal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        onCreate={handleCreateNote}
+      />
     </div>
   )
 }

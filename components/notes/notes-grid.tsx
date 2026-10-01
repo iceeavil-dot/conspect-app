@@ -1,48 +1,76 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { NoteCard } from './note-card'
+import { getNotes, toggleFavorite, type Note } from '@/lib/notes'
 
-type Note = {
-  id: string
-  title: string
-  date: string
-  coverUrl?: string | null
-  isFavorite?: boolean
-}
-
-const INITIAL_NOTES: Note[] = [
-  { id: '1', title: 'Краткое руководство', date: '09.10.2025', isFavorite: true },
-  { id: '2', title: 'Новая Заметка', date: '30.09.2025' },
-  { id: '3', title: 'Новая Заметка', date: '30.09.2025' },
-  { id: '4', title: 'Новая Заметка', date: '30.09.2025' },
-  { id: '5', title: 'Новая Заметка', date: '30.09.2025' },
-  { id: '6', title: 'Новая Заметка', date: '30.09.2025' },
-  { id: '7', title: 'Новая Заметка', date: '30.09.2025' },
-  { id: '8', title: 'Новая Заметка', date: '30.09.2025' },
-  { id: '9', title: 'Успокаивающие растения', date: '09.10.2025' },
-  { id: '10', title: 'U', date: '30.09.2025' },
-]
-
-// Сортировка: сначала избранные, потом остальные
-function sortNotes(notes: Note[]): Note[] {
-  return [...notes].sort((a, b) => {
-    if (a.isFavorite && !b.isFavorite) return -1
-    if (!a.isFavorite && b.isFavorite) return 1
-    return 0
-  })
+function formatDate(iso: string): string {
+  const d = new Date(iso)
+  const day = String(d.getDate()).padStart(2, '0')
+  const month = String(d.getMonth() + 1).padStart(2, '0')
+  const year = d.getFullYear()
+  return `${day}.${month}.${year}`
 }
 
 export function NotesGrid() {
-  const [notes, setNotes] = useState<Note[]>(sortNotes(INITIAL_NOTES))
+  const [notes, setNotes] = useState<Note[]>([])
+  const [loading, setLoading] = useState(true)
 
-  function toggleFavorite(id: string) {
+  useEffect(() => {
+    loadNotes()
+  }, [])
+
+  async function loadNotes() {
+    setLoading(true)
+    const data = await getNotes()
+    setNotes(data)
+    setLoading(false)
+  }
+
+  async function handleToggleFavorite(id: string) {
+    const note = notes.find((n) => n.id === id)
+    if (!note) return
+
+    const newValue = !note.is_favorite
+
+    // Оптимистичное обновление — сразу меняем UI, потом синхронизация с базой
     setNotes((prev) => {
       const updated = prev.map((n) =>
-        n.id === id ? { ...n, isFavorite: !n.isFavorite } : n
+        n.id === id ? { ...n, is_favorite: newValue } : n
       )
       return sortNotes(updated)
     })
+
+    // Отправляем в Supabase
+    const ok = await toggleFavorite(id, newValue)
+    if (!ok) {
+      // Если ошибка — откатываем назад
+      loadNotes()
+    }
+  }
+
+  function sortNotes(list: Note[]): Note[] {
+    return [...list].sort((a, b) => {
+      if (a.is_favorite && !b.is_favorite) return -1
+      if (!a.is_favorite && b.is_favorite) return 1
+      return 0
+    })
+  }
+
+  if (loading) {
+    return (
+      <div className="text-sm text-gray-500 dark:text-gray-500 py-8">
+        Загрузка заметок...
+      </div>
+    )
+  }
+
+  if (notes.length === 0) {
+    return (
+      <div className="text-sm text-gray-500 dark:text-gray-500 py-8">
+        Пока нет заметок. Нажми «+», чтобы создать первую.
+      </div>
+    )
   }
 
   return (
@@ -51,10 +79,10 @@ export function NotesGrid() {
         <NoteCard
           key={note.id}
           title={note.title}
-          date={note.date}
-          coverUrl={note.coverUrl}
-          isFavorite={note.isFavorite}
-          onToggleFavorite={() => toggleFavorite(note.id)}
+          date={formatDate(note.created_at)}
+          coverUrl={note.cover_url}
+          isFavorite={note.is_favorite}
+          onToggleFavorite={() => handleToggleFavorite(note.id)}
         />
       ))}
     </div>
