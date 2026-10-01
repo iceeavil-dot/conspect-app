@@ -1,5 +1,5 @@
 'use client'
-
+import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { NoteCard } from './note-card'
 import { getNotes, toggleFavorite, type Note } from '@/lib/notes'
@@ -13,6 +13,7 @@ function formatDate(iso: string): string {
 }
 
 export function NotesGrid() {
+  const router = useRouter()
   const [notes, setNotes] = useState<Note[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -83,6 +84,7 @@ export function NotesGrid() {
           coverUrl={note.cover_url}
           isFavorite={note.is_favorite}
           onToggleFavorite={() => handleToggleFavorite(note.id)}
+          onClick={() => router.push(`/notes/${note.id}`)}
         />
       ))}
     </div>

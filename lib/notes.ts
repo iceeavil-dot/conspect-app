@@ -4,6 +4,7 @@ export type Note = {
   id: string
   title: string
   content: string
+  canvas_data: string | null
   cover_url: string | null
   is_favorite: boolean
   created_at: string
