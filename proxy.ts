@@ -27,10 +27,11 @@ export async function proxy(request: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser()
 
-  const isAuthPage = request.nextUrl.pathname.startsWith('/login')
-    || request.nextUrl.pathname.startsWith('/register')
-    || request.nextUrl.pathname === '/'
-    || request.nextUrl.pathname.startsWith('/auth')
+  const isAuthPage =
+    request.nextUrl.pathname.startsWith('/login') ||
+    request.nextUrl.pathname.startsWith('/register') ||
+    request.nextUrl.pathname.startsWith('/auth') ||
+    request.nextUrl.pathname === '/'
 
   if (!user && !isAuthPage) {
     const url = request.nextUrl.clone()
