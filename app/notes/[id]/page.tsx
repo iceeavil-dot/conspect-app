@@ -5,7 +5,8 @@ import { useParams, useRouter } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { NoteCanvas } from '@/components/editor/note-canvas'
-import { createEmptyPage } from '@/lib/notes/pages'
+import { parseCanvasData, createEmptyPage } from '@/lib/notes/pages'
+import { CanvasData, NotePage } from '@/lib/notes/types'
 
 export default function NoteEditorPage() {
   const router = useRouter()
@@ -13,15 +14,18 @@ export default function NoteEditorPage() {
   const noteId = params.id as string
 
   const [loading, setLoading] = useState(true)
-  const [title, setTitle] = useState('aaa')
+  const [title, setTitle] = useState('')
+  const [canvasData, setCanvasData] = useState<CanvasData>({
+    pages: [createEmptyPage(0)],
+    currentPage: 0,
+  })
 
-  // Просто проверяем, что заметка существует
   useEffect(() => {
-    async function check() {
+    async function load() {
       const supabase = createClient()
       const { data, error } = await supabase
         .from('notes')
-        .select('title')
+        .select('*')
         .eq('id', noteId)
         .single()
 
@@ -31,15 +35,15 @@ export default function NoteEditorPage() {
       }
 
       setTitle(data.title)
+      setCanvasData(parseCanvasData(data.canvas_data))
       setLoading(false)
     }
-    check()
+    load()
   }, [noteId, router])
 
   if (loading) return <div style={{ padding: 20 }}>Загрузка...</div>
 
-  // Пустая страница — БЕЗ сохранения, БЕЗ onChange
-  const page = createEmptyPage(0)
+  const currentPage: NotePage = canvasData.pages[canvasData.currentPage]
 
   return (
     <div className="min-h-screen bg-white dark:bg-black flex flex-col">
@@ -55,7 +59,7 @@ export default function NoteEditorPage() {
       </header>
 
       <main className="flex-1 overflow-hidden">
-        <NoteCanvas page={page} />
+        <NoteCanvas page={currentPage} />
       </main>
     </div>
   )
