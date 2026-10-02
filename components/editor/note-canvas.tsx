@@ -2,7 +2,6 @@
 
 import { Tldraw, Editor, getSnapshot, loadSnapshot } from 'tldraw'
 import 'tldraw/tldraw.css'
-import { useEffect, useRef } from 'react'
 import { NotePage } from '@/lib/notes/types'
 
 type NoteCanvasProps = {
@@ -11,71 +10,49 @@ type NoteCanvasProps = {
 }
 
 export function NoteCanvas({ page, onChange }: NoteCanvasProps) {
-  const editorRef = useRef<Editor | null>(null)
-  const currentPageIdRef = useRef<string | null>(null)
-  const isFirstMountRef = useRef(true)
+  console.log('=== NoteCanvas рендерится ===', page.id, 'snapshot:', page.snapshot ? 'есть' : 'null')
 
   function handleMount(editor: Editor) {
-    editorRef.current = editor
+  console.log('=== handleMount ===')
 
-    // Загружаем только если это первый mount для этой страницы
-    if (isFirstMountRef.current) {
-      console.log('=== NoteCanvas: ПЕРВЫЙ mount ===')
-      isFirstMountRef.current = false
-      currentPageIdRef.current = page.id
-      loadPageSnapshot(editor, page.snapshot)
-    } else {
-      console.log('=== NoteCanvas: ПОВТОРНЫЙ mount (StrictMode), пропускаем загрузку ===')
+  // Загружаем сохранённый snapshot, если он есть
+  if (page.snapshot) {
+    try {
+      console.log('=== Пробую loadSnapshot ===')
+      loadSnapshot(editor.store, page.snapshot)
+      console.log('=== loadSnapshot OK ===')
+    } catch (e) {
+      console.error('=== loadSnapshot FAIL ===', e)
     }
-
-    editor.store.listen(
-      () => {
-        if (!onChange) return
-        const snapshot = getSnapshot(editor.store)
-        onChange(snapshot)
-      },
-      { source: 'user', scope: 'document' }
-    )
   }
 
-  // Переключение страницы
-  useEffect(() => {
-    if (!editorRef.current) return
-    if (currentPageIdRef.current === page.id) return
+  // Слушаем изменения — НО с защитой от первой волны событий
+  let isReady = false
+  setTimeout(() => {
+    isReady = true
+  }, 500)  // ← ждём 500мс, пока tldraw прогрузится
 
-    console.log('=== СМЕНА СТРАНИЦЫ ===', page.id)
-    currentPageIdRef.current = page.id
-    loadPageSnapshot(editorRef.current, page.snapshot)
-  }, [page.id, page.snapshot])
+  editor.store.listen(
+    () => {
+      if (!onChange) return
+      if (!isReady) return  // ← не отправляем при инициализации
+      const snapshot = getSnapshot(editor.store)
+      onChange(snapshot)
+    },
+    { source: 'user', scope: 'document' }
+  )
+}
 
-  return (
+    return (
     <div
       className="tldraw-wrapper"
-      style={{ position: 'relative', width: '100%', height: '100%' }}
+      style={{
+        position: 'relative',
+        width: '100%',
+        height: 'calc(100vh - 56px)',
+      }}
     >
       <Tldraw onMount={handleMount} />
     </div>
   )
-}
-
-function loadPageSnapshot(editor: Editor, snapshot: any) {
-  console.log('=== loadPageSnapshot ===')
-  console.log('snapshot:', snapshot ? `есть (${JSON.stringify(snapshot).length} b)` : 'null')
-
-  try {
-    const allShapeIds = editor.getCurrentPageShapeIds()
-    console.log('фигур на холсте:', allShapeIds.size)
-
-    if (allShapeIds.size > 0) {
-      editor.deleteShapes(Array.from(allShapeIds))
-      console.log('старые удалены')
-    }
-
-    if (snapshot) {
-      loadSnapshot(editor.store, snapshot)
-      console.log('loadSnapshot завершён')
-    }
-  } catch (e) {
-    console.error('❌ Ошибка:', e)
-  }
 }
