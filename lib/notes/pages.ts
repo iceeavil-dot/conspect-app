@@ -32,10 +32,17 @@ export function parseCanvasData(raw: string | null): CanvasData {
     const parsed = JSON.parse(raw)
 
     // Новый формат
-    if (parsed.pages && Array.isArray(parsed.pages)) {
+    if (parsed.pages && Array.isArray(parsed.pages) && parsed.pages.length > 0) {
+      // ⚠️ Нормализуем индекс: если он вне границ — сбрасываем на 0
+      let currentPage = parsed.currentPage ?? 0
+      if (currentPage < 0 || currentPage >= parsed.pages.length) {
+        console.warn('currentPage вне границ, сбрасываю на 0')
+        currentPage = 0
+      }
+
       return {
         pages: parsed.pages,
-        currentPage: parsed.currentPage ?? 0,
+        currentPage,
       }
     }
 
