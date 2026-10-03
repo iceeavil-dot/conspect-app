@@ -82,3 +82,61 @@ export async function deleteNote(id: string): Promise<boolean> {
 
   return true
 }
+
+// Переименовать заметку
+export async function renameNote(id: string, newTitle: string): Promise<boolean> {
+  const supabase = createClient()
+
+  const { error } = await supabase
+    .from('notes')
+    .update({ title: newTitle, updated_at: new Date().toISOString() })
+    .eq('id', id)
+
+  if (error) {
+    console.error('Ошибка переименования:', error)
+    return false
+  }
+
+  return true
+}
+
+// Дублировать заметку
+export async function duplicateNote(id: string): Promise<Note | null> {
+  const supabase = createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return null
+
+  // Загружаем исходную заметку
+  const { data: original, error: loadError } = await supabase
+    .from('notes')
+    .select('*')
+    .eq('id', id)
+    .single()
+
+  if (loadError || !original) {
+    console.error('Ошибка загрузки для дублирования:', loadError)
+    return null
+  }
+
+  // Создаём копию
+  const { data: copy, error: copyError } = await supabase
+    .from('notes')
+    .insert({
+      user_id: user.id,
+      title: `${original.title} (копия)`,
+      content: original.content,
+      canvas_data: original.canvas_data,
+      cover_url: original.cover_url,
+      is_favorite: false,
+    })
+    .select()
+    .single()
+
+  if (copyError) {
+    console.error('Ошибка дублирования:', copyError)
+    return null
+  }
+
+  return copy
+}
