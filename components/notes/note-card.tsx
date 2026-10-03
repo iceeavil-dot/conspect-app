@@ -1,6 +1,7 @@
 'use client'
 
-import { Star, ChevronDown } from 'lucide-react'
+import { Star } from 'lucide-react'
+import { NoteCardMenu } from './note-card-menu'
 
 type NoteCardProps = {
   title: string
@@ -8,6 +9,9 @@ type NoteCardProps = {
   coverUrl?: string | null
   isFavorite?: boolean
   onToggleFavorite?: () => void
+  onRename?: () => void
+  onDuplicate?: () => void
+  onDelete?: () => void
   onClick?: () => void
 }
 
@@ -17,6 +21,9 @@ export function NoteCard({
   coverUrl,
   isFavorite = false,
   onToggleFavorite,
+  onRename,
+  onDuplicate,
+  onDelete,
   onClick,
 }: NoteCardProps) {
   function handleFavoriteClick(e: React.MouseEvent) {
@@ -59,14 +66,16 @@ export function NoteCard({
         </button>
       </div>
 
-      {/* Название + стрелочка */}
+      {/* Название + меню */}
       <div className="flex items-center justify-between gap-1 px-1">
         <h3 className="text-sm font-medium text-black dark:text-white truncate">
           {title}
         </h3>
-        <ChevronDown
-          size={14}
-          className="text-gray-400 dark:text-gray-500 flex-shrink-0"
+
+        <NoteCardMenu
+          onRename={onRename ?? (() => {})}
+          onDuplicate={onDuplicate ?? (() => {})}
+          onDelete={onDelete ?? (() => {})}
         />
       </div>
 
