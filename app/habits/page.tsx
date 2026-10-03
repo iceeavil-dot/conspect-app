@@ -6,13 +6,14 @@ import { Plus } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { Header } from '@/components/layout/header'
 import { CreateHabitModal } from '@/components/habits/create-habit-modal'
-import { getHabits, createHabit, type Habit } from '@/lib/habits'
+import { HabitsGrid } from '@/components/habits/habits-grid'
+import { createHabit } from '@/lib/habits'
 
 export default function HabitsPage() {
   const router = useRouter()
-  const [habits, setHabits] = useState<Habit[]>([])
   const [loading, setLoading] = useState(true)
   const [modalOpen, setModalOpen] = useState(false)
+  const [refreshKey, setRefreshKey] = useState(0)
 
   useEffect(() => {
     async function check() {
@@ -22,9 +23,6 @@ export default function HabitsPage() {
         router.push('/login')
         return
       }
-
-      const data = await getHabits()
-      setHabits(data)
       setLoading(false)
     }
     check()
@@ -33,7 +31,7 @@ export default function HabitsPage() {
   async function handleCreateHabit(name: string) {
     const habit = await createHabit(name)
     if (habit) {
-      setHabits((prev) => [...prev, habit])
+      setRefreshKey((k) => k + 1)
     }
   }
 
@@ -57,30 +55,7 @@ export default function HabitsPage() {
           </h1>
         </div>
 
-        {habits.length === 0 ? (
-          <div className="text-sm text-gray-500 dark:text-gray-500 py-12 text-center">
-            Пока нет привычек. Нажми «+», чтобы добавить первую.
-          </div>
-        ) : (
-          <div className="text-sm text-gray-700 dark:text-gray-300">
-            <div className="mb-3 text-gray-500 dark:text-gray-400">
-              Всего привычек: {habits.length}
-            </div>
-            <ul className="space-y-1">
-              {habits.map((h) => (
-                <li
-                  key={h.id}
-                  className="px-3 py-2 rounded-md bg-gray-50 dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800"
-                >
-                  {h.name}
-                </li>
-              ))}
-            </ul>
-            <p className="mt-4 text-xs text-gray-400 dark:text-gray-500">
-              Сетка с днями — в следующем шаге
-            </p>
-          </div>
-        )}
+        <HabitsGrid key={refreshKey} />
       </main>
 
       <button
