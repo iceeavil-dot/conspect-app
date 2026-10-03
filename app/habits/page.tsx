@@ -5,12 +5,14 @@ import { useRouter } from 'next/navigation'
 import { Plus } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { Header } from '@/components/layout/header'
-import { getHabits, type Habit } from '@/lib/habits'
+import { CreateHabitModal } from '@/components/habits/create-habit-modal'
+import { getHabits, createHabit, type Habit } from '@/lib/habits'
 
 export default function HabitsPage() {
   const router = useRouter()
   const [habits, setHabits] = useState<Habit[]>([])
   const [loading, setLoading] = useState(true)
+  const [modalOpen, setModalOpen] = useState(false)
 
   useEffect(() => {
     async function check() {
@@ -27,6 +29,13 @@ export default function HabitsPage() {
     }
     check()
   }, [router])
+
+  async function handleCreateHabit(name: string) {
+    const habit = await createHabit(name)
+    if (habit) {
+      setHabits((prev) => [...prev, habit])
+    }
+  }
 
   if (loading) {
     return (
@@ -53,23 +62,40 @@ export default function HabitsPage() {
             Пока нет привычек. Нажми «+», чтобы добавить первую.
           </div>
         ) : (
-          <div className="text-sm text-gray-500 dark:text-gray-400">
-            Всего привычек: {habits.length}
-            <br />
-            <span className="text-xs">
-              Сетка будет в следующем шаге
-            </span>
+          <div className="text-sm text-gray-700 dark:text-gray-300">
+            <div className="mb-3 text-gray-500 dark:text-gray-400">
+              Всего привычек: {habits.length}
+            </div>
+            <ul className="space-y-1">
+              {habits.map((h) => (
+                <li
+                  key={h.id}
+                  className="px-3 py-2 rounded-md bg-gray-50 dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800"
+                >
+                  {h.name}
+                </li>
+              ))}
+            </ul>
+            <p className="mt-4 text-xs text-gray-400 dark:text-gray-500">
+              Сетка с днями — в следующем шаге
+            </p>
           </div>
         )}
       </main>
 
       <button
+        onClick={() => setModalOpen(true)}
         className="fixed bottom-6 right-6 z-40 w-14 h-14 rounded-full bg-black dark:bg-white text-white dark:text-black shadow-lg hover:scale-105 active:scale-95 transition-transform flex items-center justify-center"
         title="Добавить привычку"
-        onClick={() => alert('Скоро: модалка создания')}
       >
         <Plus size={26} strokeWidth={2.5} />
       </button>
+
+      <CreateHabitModal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        onCreate={handleCreateHabit}
+      />
     </div>
   )
 }
