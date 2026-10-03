@@ -136,7 +136,7 @@ if (!currentPage) {
         <div style={{ width: 40 }} />
       </header>
 
-      <main className="overflow-hidden" style={{ height: 'calc(100vh - 56px - 60px)' }}>
+      <main className="overflow-hidden" style={{ height: 'calc(100vh - 56px - 100px)' }}>
       <NoteCanvas
   key={currentPage.id}
   page={currentPage}

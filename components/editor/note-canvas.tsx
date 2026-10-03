@@ -44,15 +44,15 @@ export function NoteCanvas({ page, onChange }: NoteCanvasProps) {
 }
 
     return (
-    <div
-      className="tldraw-wrapper"
-      style={{
-        position: 'relative',
-        width: '100%',
-        height: 'calc(100vh - 56px)',
-      }}
-    >
-      <Tldraw onMount={handleMount} />
-    </div>
-  )
+  <div
+    className="tldraw-wrapper"
+    style={{
+      position: 'relative',
+      width: '100%',
+      height: 'calc(100vh - 56px - 100px)',
+    }}
+  >
+    <Tldraw onMount={handleMount} />
+  </div>
+)
 }
