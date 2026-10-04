@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { Header } from '@/components/layout/header'
-import { DonutChart } from '@/components/productivity/donut-chart'
+import { DayStatsView } from '@/components/productivity/day-stats'
 import {
   getDayStats,
   getPreviousDayStats,
@@ -189,28 +189,22 @@ export default function ProductivityPage() {
           </div>
         )}
 
-        {/* ─── ДЕНЬ ─── */}
-        {period === 'day' && (
-          <>
-            {statsLoading || !stats ? (
-              <div className="text-center text-sm text-gray-400 dark:text-gray-600 py-12">
-                Загрузка...
-              </div>
-            ) : stats.habitsTotal + stats.tasksTotal === 0 ? (
-              <div className="text-center text-sm text-gray-400 dark:text-gray-600 py-12">
-                Нет данных за этот день. Добавь привычки или задачи.
-              </div>
-            ) : (
-              <div className="flex justify-center">
-                <DonutChart
-                  percent={stats.totalPercent}
-                  habitShare={stats.habitShare}
-                  taskShare={stats.taskShare}
-                />
-              </div>
-            )}
-          </>
-        )}
+      {/* ─── ДЕНЬ ─── */}
+{period === 'day' && (
+  <>
+    {statsLoading || !stats ? (
+      <div className="text-center text-sm text-gray-400 dark:text-gray-600 py-12">
+        Загрузка...
+      </div>
+    ) : stats.habitsTotal + stats.tasksTotal === 0 ? (
+      <div className="text-center text-sm text-gray-400 dark:text-gray-600 py-12">
+        Нет данных за этот день. Добавь привычки или задачи.
+      </div>
+    ) : (
+      <DayStatsView stats={stats} prevStats={prevStats} streak={streak} />
+    )}
+  </>
+)}
 
         {/* ─── НЕДЕЛЯ ─── */}
         {period === 'week' && (
