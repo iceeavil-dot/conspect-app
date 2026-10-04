@@ -7,7 +7,15 @@ import { createClient } from '@/lib/supabase/client'
 import { Header } from '@/components/layout/header'
 import { TimeTable } from '@/components/planner/time-table'
 import { CreateTaskModal } from '@/components/planner/create-task-modal'
-import { getTasksByDate, createTask, type PlannerTask } from '@/lib/planner'
+import { TaskList } from '@/components/planner/task-list'
+import {
+  getTasksByDate,
+  createTask,
+  toggleTaskDone,
+  updateTaskPriority,
+  deleteTask,
+  type PlannerTask,
+} from '@/lib/planner'
 
 // Формат даты → YYYY-MM-DD
 function formatDate(d: Date): string {
@@ -24,7 +32,9 @@ function formatHumanDate(d: Date): string {
   const target = new Date(d)
   target.setHours(0, 0, 0, 0)
 
-  const diffDays = Math.round((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+  const diffDays = Math.round(
+    (target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
+  )
 
   if (diffDays === 0) return 'Сегодня'
   if (diffDays === 1) return 'Завтра'
@@ -32,7 +42,7 @@ function formatHumanDate(d: Date): string {
 
   const months = [
     'янв', 'фев', 'мар', 'апр', 'мая', 'июн',
-    'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'
+    'июл', 'авг', 'сен', 'окт', 'ноя', 'дек',
   ]
   return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`
 }
@@ -114,7 +124,46 @@ export default function PlannerPage() {
     }
   }
 
-  const dateStr = formatDate(date)
+  // Переключить done
+  async function handleToggleDone(id: string, done: boolean) {
+    setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, done } : t)))
+    const ok = await toggleTaskDone(id, done)
+    if (!ok) {
+      setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, done: !done } : t)))
+    }
+  }
+
+  // Циклическое переключение приоритета: none → yellow → red → none
+  async function handleCyclePriority(
+    id: string,
+    current: 'none' | 'yellow' | 'red'
+  ) {
+    const next: 'none' | 'yellow' | 'red' =
+      current === 'none' ? 'yellow' : current === 'yellow' ? 'red' : 'none'
+
+    setTasks((prev) =>
+      prev.map((t) => (t.id === id ? { ...t, priority: next } : t))
+    )
+    const ok = await updateTaskPriority(id, next)
+    if (!ok) {
+      setTasks((prev) =>
+        prev.map((t) => (t.id === id ? { ...t, priority: current } : t))
+      )
+    }
+  }
+
+  // Удаление с подтверждением
+  async function handleDeleteTask(id: string, text: string) {
+    const confirmed = window.confirm(`Удалить задачу «${text}»?`)
+    if (!confirmed) return
+
+    const ok = await deleteTask(id)
+    if (ok) {
+      setTasks((prev) => prev.filter((t) => t.id !== id))
+    } else {
+      alert('Не удалось удалить')
+    }
+  }
 
   if (loading) {
     return (
@@ -173,17 +222,18 @@ export default function PlannerPage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Левая колонка: Time Table */}
           <div>
-            <TimeTable
-              tasks={tasks}
-              onAddAtHour={handleAddAtHour}
-            />
+            <TimeTable tasks={tasks} onAddAtHour={handleAddAtHour} />
           </div>
 
-          {/* Правая колонка: To-do + Дневник (пока заглушки) */}
+          {/* Правая колонка: To-do + Дневник */}
           <div className="flex flex-col gap-4">
-            <div className="border border-dashed border-gray-300 dark:border-neutral-800 rounded-lg p-6 text-center text-gray-400 dark:text-gray-600">
-              To-do список — следующая часть
-            </div>
+            <TaskList
+              tasks={tasks}
+              onToggleDone={handleToggleDone}
+              onCyclePriority={handleCyclePriority}
+              onDelete={handleDeleteTask}
+            />
+
             <div className="border border-dashed border-gray-300 dark:border-neutral-800 rounded-lg p-6 text-center text-gray-400 dark:text-gray-600">
               Дневник — следующая часть
             </div>
