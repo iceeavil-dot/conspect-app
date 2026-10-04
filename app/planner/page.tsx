@@ -2,9 +2,12 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Plus } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { Header } from '@/components/layout/header'
+import { TimeTable } from '@/components/planner/time-table'
+import { CreateTaskModal } from '@/components/planner/create-task-modal'
+import { getTasksByDate, createTask, type PlannerTask } from '@/lib/planner'
 
 // Формат даты → YYYY-MM-DD
 function formatDate(d: Date): string {
@@ -34,11 +37,24 @@ function formatHumanDate(d: Date): string {
   return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`
 }
 
+// Сортировка: сначала с временем (по времени), потом без
+function sortTasks(a: PlannerTask, b: PlannerTask): number {
+  if (a.time && !b.time) return -1
+  if (!a.time && b.time) return 1
+  if (a.time && b.time) return a.time.localeCompare(b.time)
+  return a.created_at.localeCompare(b.created_at)
+}
+
 export default function PlannerPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(true)
   const [date, setDate] = useState(new Date())
 
+  const [tasks, setTasks] = useState<PlannerTask[]>([])
+  const [modalOpen, setModalOpen] = useState(false)
+  const [presetTime, setPresetTime] = useState<string | null>(null)
+
+  // Проверка авторизации
   useEffect(() => {
     async function check() {
       const supabase = createClient()
@@ -51,6 +67,15 @@ export default function PlannerPage() {
     }
     check()
   }, [router])
+
+  // Загрузка задач при смене даты
+  useEffect(() => {
+    if (loading) return
+    const dateStr = formatDate(date)
+    getTasksByDate(dateStr).then((data) => {
+      setTasks(data.sort(sortTasks))
+    })
+  }, [date, loading])
 
   function handlePrevDay() {
     const d = new Date(date)
@@ -66,6 +91,27 @@ export default function PlannerPage() {
 
   function handleToday() {
     setDate(new Date())
+  }
+
+  // Открыть модалку с предустановленным временем
+  function handleAddAtHour(hour: string) {
+    setPresetTime(hour)
+    setModalOpen(true)
+  }
+
+  // Открыть модалку без времени
+  function handleAddEmpty() {
+    setPresetTime(null)
+    setModalOpen(true)
+  }
+
+  // Создание задачи
+  async function handleCreateTask(text: string, time: string | null) {
+    const dateStr = formatDate(date)
+    const newTask = await createTask(dateStr, text, time)
+    if (newTask) {
+      setTasks((prev) => [...prev, newTask].sort(sortTasks))
+    }
   }
 
   const dateStr = formatDate(date)
@@ -84,8 +130,8 @@ export default function PlannerPage() {
       <Header />
 
       <main className="px-4 md:px-6 py-6">
-        {/* Шапка с датой */}
-        <div className="flex items-center justify-between mb-6">
+        {/* Шапка с датой и кнопкой "+ Дело" */}
+        <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
           <h1 className="text-xl font-semibold text-black dark:text-white">
             Планер
           </h1>
@@ -112,24 +158,46 @@ export default function PlannerPage() {
             >
               <ChevronRight size={18} />
             </button>
+
+            <button
+              onClick={handleAddEmpty}
+              className="ml-2 flex items-center gap-1 px-3 py-1.5 rounded-md text-sm font-medium bg-black text-white dark:bg-white dark:text-black hover:opacity-80"
+            >
+              <Plus size={14} strokeWidth={2.5} />
+              Дело
+            </button>
           </div>
         </div>
 
-        {/* Отладка: показываем дату */}
-        <div className="text-xs text-gray-500 dark:text-gray-500 mb-4">
-          Дата: <code>{dateStr}</code>
-        </div>
-
-        {/* Двухколоночный layout — пока заглушки */}
+        {/* Основной layout */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="border border-dashed border-gray-300 dark:border-neutral-800 rounded-lg p-6 text-center text-gray-400 dark:text-gray-600">
-            Time Table — здесь будет сетка часов
+          {/* Левая колонка: Time Table */}
+          <div>
+            <TimeTable
+              tasks={tasks}
+              onAddAtHour={handleAddAtHour}
+            />
           </div>
-          <div className="border border-dashed border-gray-300 dark:border-neutral-800 rounded-lg p-6 text-center text-gray-400 dark:text-gray-600">
-            To-do + Дневник
+
+          {/* Правая колонка: To-do + Дневник (пока заглушки) */}
+          <div className="flex flex-col gap-4">
+            <div className="border border-dashed border-gray-300 dark:border-neutral-800 rounded-lg p-6 text-center text-gray-400 dark:text-gray-600">
+              To-do список — следующая часть
+            </div>
+            <div className="border border-dashed border-gray-300 dark:border-neutral-800 rounded-lg p-6 text-center text-gray-400 dark:text-gray-600">
+              Дневник — следующая часть
+            </div>
           </div>
         </div>
       </main>
+
+      {/* Модалка создания задачи */}
+      <CreateTaskModal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        onCreate={handleCreateTask}
+        presetTime={presetTime}
+      />
     </div>
   )
 }
