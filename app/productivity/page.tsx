@@ -6,7 +6,12 @@ import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { Header } from '@/components/layout/header'
 import { DonutChart } from '@/components/productivity/donut-chart'
-
+import {
+  getDayStats,
+  getPreviousDayStats,
+  getStreak,
+  type DayStats,
+} from '@/lib/productivity'
 
 type Period = 'day' | 'week' | 'month'
 
@@ -46,6 +51,12 @@ export default function ProductivityPage() {
   const [period, setPeriod] = useState<Period>('day')
   const [date, setDate] = useState(new Date())
 
+  const [stats, setStats] = useState<DayStats | null>(null)
+  const [prevStats, setPrevStats] = useState<DayStats | null>(null)
+  const [streak, setStreak] = useState(0)
+  const [statsLoading, setStatsLoading] = useState(false)
+
+  // Проверка авторизации
   useEffect(() => {
     async function check() {
       const supabase = createClient()
@@ -58,6 +69,27 @@ export default function ProductivityPage() {
     }
     check()
   }, [router])
+
+  // Загрузка статистики при смене даты (только для Дня)
+  useEffect(() => {
+    if (loading) return
+    if (period !== 'day') return
+
+    async function load() {
+      setStatsLoading(true)
+      const dateStr = formatDate(date)
+      const [today, yesterday, streakValue] = await Promise.all([
+        getDayStats(dateStr),
+        getPreviousDayStats(dateStr),
+        getStreak(dateStr, 80),
+      ])
+      setStats(today)
+      setPrevStats(yesterday)
+      setStreak(streakValue)
+      setStatsLoading(false)
+    }
+    load()
+  }, [date, loading, period])
 
   function handlePrevDay() {
     const d = new Date(date)
@@ -157,22 +189,42 @@ export default function ProductivityPage() {
           </div>
         )}
 
-       {/* Временный тест donut */}
-{period === 'day' && (
-  <div className="flex justify-center">
-    <DonutChart percent={78} habitShare={44} taskShare={34} />
-  </div>
-)}
-{period === 'week' && (
-  <div className="border border-dashed border-gray-300 dark:border-neutral-800 rounded-lg p-12 text-center text-gray-400 dark:text-gray-600">
-    График за неделю — следующая часть
-  </div>
-)}
-{period === 'month' && (
-  <div className="border border-dashed border-gray-300 dark:border-neutral-800 rounded-lg p-12 text-center text-gray-400 dark:text-gray-600">
-    График за месяц — следующая часть
-  </div>
-)}
+        {/* ─── ДЕНЬ ─── */}
+        {period === 'day' && (
+          <>
+            {statsLoading || !stats ? (
+              <div className="text-center text-sm text-gray-400 dark:text-gray-600 py-12">
+                Загрузка...
+              </div>
+            ) : stats.habitsTotal + stats.tasksTotal === 0 ? (
+              <div className="text-center text-sm text-gray-400 dark:text-gray-600 py-12">
+                Нет данных за этот день. Добавь привычки или задачи.
+              </div>
+            ) : (
+              <div className="flex justify-center">
+                <DonutChart
+                  percent={stats.totalPercent}
+                  habitShare={stats.habitShare}
+                  taskShare={stats.taskShare}
+                />
+              </div>
+            )}
+          </>
+        )}
+
+        {/* ─── НЕДЕЛЯ ─── */}
+        {period === 'week' && (
+          <div className="border border-dashed border-gray-300 dark:border-neutral-800 rounded-lg p-12 text-center text-gray-400 dark:text-gray-600">
+            График за неделю — следующая часть
+          </div>
+        )}
+
+        {/* ─── МЕСЯЦ ─── */}
+        {period === 'month' && (
+          <div className="border border-dashed border-gray-300 dark:border-neutral-800 rounded-lg p-12 text-center text-gray-400 dark:text-gray-600">
+            График за месяц — следующая часть
+          </div>
+        )}
       </main>
     </div>
   )
