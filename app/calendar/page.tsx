@@ -9,9 +9,12 @@ import {
   getMonthItems,
   createEvent,
   createCalendarTask,
+  updateCalendarItem,
+  deleteCalendarItem,
   type CalendarItem,
 } from '@/lib/calendar'
 import { CreateItemModal } from '@/components/calendar/create-item-modal'
+import { DayItemsModal } from '@/components/calendar/day-items-modal'
 
 const MONTHS_RU_FULL = [
   'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
@@ -47,7 +50,13 @@ export default function CalendarPage() {
   const [modalOpen, setModalOpen] = useState(false)
   const [selectedDate, setSelectedDate] = useState<string>('')
 
-  // Проверка авторизации
+  // Режим редактирования
+  const [editingItem, setEditingItem] = useState<CalendarItem | null>(null)
+
+  // Модалка со списком всех дел дня
+  const [dayListOpen, setDayListOpen] = useState(false)
+  const [dayListDate, setDayListDate] = useState<string>('')
+
   useEffect(() => {
     async function check() {
       const supabase = createClient()
@@ -61,7 +70,6 @@ export default function CalendarPage() {
     check()
   }, [router])
 
-  // Загрузка данных за месяц
   const load = useCallback(async () => {
     setItemsLoading(true)
     const data = await getMonthItems(year, month)
@@ -98,20 +106,34 @@ export default function CalendarPage() {
     setMonth(today.getMonth())
   }
 
-  function handleDayClick(dateStr: string) {
+  // Клик по ПУСТОМУ месту — создание
+  function handleEmptyClick(dateStr: string) {
     setSelectedDate(dateStr)
+    setEditingItem(null)
     setModalOpen(true)
   }
 
+  // Клик по ЭЛЕМЕНТУ — редактирование
+  function handleItemClick(item: CalendarItem) {
+    setSelectedDate(item.date)
+    setEditingItem(item)
+    setModalOpen(true)
+  }
+
+  // Клик на "+N ещё" — модалка со списком
+  function handleShowAllClick(dateStr: string) {
+    setDayListDate(dateStr)
+    setDayListOpen(true)
+  }
+
+  // Создание
   async function handleCreateEvent(
     text: string,
     time: string,
     endTime: string
   ) {
     const item = await createEvent(selectedDate, text, time, endTime)
-    if (item) {
-      setItems((prev) => [...prev, item])
-    }
+    if (item) setItems((prev) => [...prev, item])
   }
 
   async function handleCreateTask(
@@ -120,8 +142,32 @@ export default function CalendarPage() {
     priority: 'none' | 'yellow' | 'red'
   ) {
     const item = await createCalendarTask(selectedDate, text, time, priority)
-    if (item) {
-      setItems((prev) => [...prev, item])
+    if (item) setItems((prev) => [...prev, item])
+  }
+
+  // Обновление
+  async function handleUpdate(
+    id: string,
+    updates: {
+      text: string
+      time: string | null
+      end_time: string | null
+      priority: 'none' | 'yellow' | 'red'
+    }
+  ) {
+    const ok = await updateCalendarItem(id, updates)
+    if (ok) {
+      setItems((prev) =>
+        prev.map((it) => (it.id === id ? { ...it, ...updates } : it))
+      )
+    }
+  }
+
+  // Удаление
+  async function handleDelete(id: string) {
+    const ok = await deleteCalendarItem(id)
+    if (ok) {
+      setItems((prev) => prev.filter((it) => it.id !== id))
     }
   }
 
@@ -204,7 +250,6 @@ export default function CalendarPage() {
             ))}
           </div>
 
-          {/* Ячейки — по неделям */}
           {weeks.map((week, wi) => (
             <div
               key={wi}
@@ -227,7 +272,7 @@ export default function CalendarPage() {
                 return (
                   <div
                     key={di}
-                    onClick={() => handleDayClick(dateStr)}
+                    onClick={() => handleEmptyClick(dateStr)}
                     className="min-h-[110px] p-2 border-r-2 border-gray-300 dark:border-neutral-700 last:border-r-0 hover:bg-gray-50 dark:hover:bg-neutral-950 transition-colors cursor-pointer"
                   >
                     {/* Число */}
@@ -244,29 +289,45 @@ export default function CalendarPage() {
                     </div>
 
                     {/* Список элементов */}
-                    <div className="space-y-0.5">
+                    <div className="space-y-1">
                       {dayItems.slice(0, 3).map((item) => (
-                        <div
+                        <button
                           key={item.id}
-                          className="text-[10px] leading-tight text-gray-700 dark:text-gray-300 truncate"
-                          title={item.text}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleItemClick(item)
+                          }}
+                          className="w-full text-left px-1 py-0.5 -mx-1 rounded hover:bg-gray-100 dark:hover:bg-neutral-800 active:bg-gray-200 dark:active:bg-neutral-700 transition-colors"
                         >
-                          <span className="mr-0.5">
-                            {item.is_event ? '🕐' : '☐'}
-                          </span>
-                          <span className="truncate">{item.text}</span>
-                          {item.time && (
-                            <span className="ml-1 text-gray-400 dark:text-gray-500 tabular-nums">
-                              {item.time}
+                          <div className="flex items-start gap-1">
+                            <span className="shrink-0 text-xs mt-px">
+                              {item.is_event ? '🕐' : '☐'}
                             </span>
-                          )}
-                        </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="text-xs text-gray-800 dark:text-gray-200 truncate leading-tight">
+                                {item.text}
+                              </div>
+                              {(item.time || item.end_time) && (
+                                <div className="text-[10px] italic text-gray-500 dark:text-gray-500 tabular-nums leading-tight">
+                                  {item.time}
+                                  {item.end_time && `–${item.end_time}`}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </button>
                       ))}
 
                       {dayItems.length > 3 && (
-                        <div className="text-[10px] text-gray-400 dark:text-gray-500">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleShowAllClick(dateStr)
+                          }}
+                          className="w-full text-left text-xs text-gray-500 dark:text-gray-500 hover:text-black dark:hover:text-white px-1 py-0.5 -mx-1 rounded hover:bg-gray-100 dark:hover:bg-neutral-800"
+                        >
                           +{dayItems.length - 3} ещё
-                        </div>
+                        </button>
                       )}
                     </div>
                   </div>
@@ -276,16 +337,33 @@ export default function CalendarPage() {
           ))}
         </div>
 
-        {/* Модалка создания */}
+        {/* Модалка создания/редактирования */}
         <CreateItemModal
           open={modalOpen}
           date={selectedDate}
-          onClose={() => setModalOpen(false)}
+          editingItem={editingItem}
+          onClose={() => {
+            setModalOpen(false)
+            setEditingItem(null)
+          }}
           onCreateEvent={handleCreateEvent}
           onCreateTask={handleCreateTask}
+          onUpdate={handleUpdate}
+          onDelete={handleDelete}
         />
 
-        {/* Индикатор загрузки */}
+        {/* Модалка со списком дел дня */}
+        <DayItemsModal
+          open={dayListOpen}
+          date={dayListDate}
+          items={items.filter((it) => it.date === dayListDate)}
+          onClose={() => setDayListOpen(false)}
+          onPickItem={(item) => {
+            setDayListOpen(false)
+            handleItemClick(item)
+          }}
+        />
+
         {itemsLoading && (
           <div className="text-center text-xs text-gray-400 dark:text-gray-600 mt-4">
             Загрузка событий...

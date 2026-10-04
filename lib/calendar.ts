@@ -146,3 +146,36 @@ function formatDate(d: Date): string {
   const day = String(d.getDate()).padStart(2, '0')
   return `${y}-${m}-${day}`
 }
+// ─────────────────────────────────────────────────────────────
+// Обновить элемент календаря
+// ─────────────────────────────────────────────────────────────
+
+export async function updateCalendarItem(
+  id: string,
+  updates: {
+    text?: string
+    time?: string | null
+    end_time?: string | null
+    priority?: 'none' | 'yellow' | 'red'
+  }
+): Promise<boolean> {
+  const supabase = createClient()
+
+  const payload: Record<string, any> = {}
+  if (updates.text !== undefined) payload.text = updates.text.trim()
+  if (updates.time !== undefined) payload.time = updates.time
+  if (updates.end_time !== undefined) payload.end_time = updates.end_time
+  if (updates.priority !== undefined) payload.priority = updates.priority
+
+  const { error } = await supabase
+    .from('planner_tasks')
+    .update(payload)
+    .eq('id', id)
+
+  if (error) {
+    console.error('Ошибка обновления элемента:', error)
+    return false
+  }
+
+  return true
+}

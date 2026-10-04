@@ -1,24 +1,36 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { X, Clock, CheckSquare } from 'lucide-react'
+import { X, Clock, CheckSquare, Trash2 } from 'lucide-react'
+import type { CalendarItem } from '@/lib/calendar'
 
 type ItemType = 'event' | 'task'
 
 type CreateItemModalProps = {
   open: boolean
-  /** Дата в формате YYYY-MM-DD */
-  date: string
+  /** Дата YYYY-MM-DD — для нового элемента */
+  date?: string
+  /** Элемент для редактирования (если передан — режим редактирования) */
+  editingItem?: CalendarItem | null
   onClose: () => void
-  onCreateEvent: (text: string, time: string, endTime: string) => Promise<void>
-  onCreateTask: (
+  onCreateEvent?: (text: string, time: string, endTime: string) => Promise<void>
+  onCreateTask?: (
     text: string,
     time: string | null,
     priority: 'none' | 'yellow' | 'red'
   ) => Promise<void>
+  onUpdate?: (
+    id: string,
+    updates: {
+      text: string
+      time: string | null
+      end_time: string | null
+      priority: 'none' | 'yellow' | 'red'
+    }
+  ) => Promise<void>
+  onDelete?: (id: string) => Promise<void>
 }
 
-// Часы от 6:00 до 2:00 (как в планере)
 function generateHours(): string[] {
   const hours: string[] = []
   for (let h = 6; h <= 23; h++) {
@@ -30,7 +42,6 @@ function generateHours(): string[] {
   return hours
 }
 
-// Красивая дата
 function formatDateHuman(dateStr: string): string {
   const d = new Date(dateStr + 'T00:00:00')
   const months = [
@@ -43,10 +54,14 @@ function formatDateHuman(dateStr: string): string {
 export function CreateItemModal({
   open,
   date,
+  editingItem,
   onClose,
   onCreateEvent,
   onCreateTask,
+  onUpdate,
+  onDelete,
 }: CreateItemModalProps) {
+  const isEditing = !!editingItem
   const [type, setType] = useState<ItemType>('task')
   const [text, setText] = useState('')
   const [time, setTime] = useState<string>('')
@@ -55,20 +70,27 @@ export function CreateItemModal({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  // Сброс при открытии
+  // Инициализация при открытии
   useEffect(() => {
-    if (open) {
+    if (!open) return
+
+    if (editingItem) {
+      setType(editingItem.is_event ? 'event' : 'task')
+      setText(editingItem.text)
+      setTime(editingItem.time ?? '')
+      setEndTime(editingItem.end_time ?? '')
+      setPriority(editingItem.priority)
+    } else {
       setType('task')
       setText('')
       setTime('')
       setEndTime('')
       setPriority('none')
-      setLoading(false)
-      setError('')
     }
-  }, [open])
+    setLoading(false)
+    setError('')
+  }, [open, editingItem])
 
-  // Esc для закрытия
   useEffect(() => {
     if (!open) return
     function handleKey(e: KeyboardEvent) {
@@ -81,6 +103,7 @@ export function CreateItemModal({
   if (!open) return null
 
   const hours = generateHours()
+  const displayDate = editingItem?.date ?? date ?? ''
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -92,7 +115,6 @@ export function CreateItemModal({
       return
     }
 
-    // Валидация события
     if (type === 'event') {
       if (!time) {
         setError('Для события нужно время начала')
@@ -102,7 +124,6 @@ export function CreateItemModal({
         setError('Для события нужно время окончания')
         return
       }
-      // Проверка: конец должен быть после начала
       if (endTime === time) {
         setError('Конец должен быть позже начала')
         return
@@ -112,14 +133,39 @@ export function CreateItemModal({
     setLoading(true)
 
     try {
-      if (type === 'event') {
+      if (isEditing && editingItem && onUpdate) {
+        // Редактирование
+        await onUpdate(editingItem.id, {
+          text: trimmed,
+          time: type === 'event' ? time : time || null,
+          end_time: type === 'event' ? endTime : null,
+          priority,
+        })
+      } else if (type === 'event' && onCreateEvent) {
         await onCreateEvent(trimmed, time, endTime)
-      } else {
+      } else if (type === 'task' && onCreateTask) {
         await onCreateTask(trimmed, time || null, priority)
       }
       onClose()
     } catch (err) {
-      setError('Ошибка при создании')
+      setError('Ошибка при сохранении')
+      setLoading(false)
+    }
+  }
+
+  async function handleDelete() {
+    if (!editingItem || !onDelete) return
+    const confirmed = window.confirm(
+      `Удалить «${editingItem.text}»? Это действие нельзя отменить.`
+    )
+    if (!confirmed) return
+
+    setLoading(true)
+    try {
+      await onDelete(editingItem.id)
+      onClose()
+    } catch (err) {
+      setError('Ошибка при удалении')
       setLoading(false)
     }
   }
@@ -131,17 +177,19 @@ export function CreateItemModal({
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-md rounded-xl bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800 shadow-xl"
+        className="w-full max-w-md rounded-xl bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800 shadow-xl max-h-[90vh] overflow-y-auto"
       >
         {/* Шапка */}
         <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-gray-100 dark:border-neutral-800">
           <div>
             <h2 className="text-lg font-semibold text-black dark:text-white">
-              Новое
+              {isEditing ? 'Редактировать' : 'Новое'}
             </h2>
-            <p className="text-xs text-gray-500 dark:text-gray-500 mt-0.5">
-              {formatDateHuman(date)}
-            </p>
+            {displayDate && (
+              <p className="text-xs text-gray-500 dark:text-gray-500 mt-0.5">
+                {formatDateHuman(displayDate)}
+              </p>
+            )}
           </div>
           <button
             onClick={onClose}
@@ -151,35 +199,37 @@ export function CreateItemModal({
           </button>
         </div>
 
-        {/* Переключатель типа */}
-        <div className="px-5 pt-4">
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => setType('task')}
-              className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-md text-sm font-medium transition-colors ${
-                type === 'task'
-                  ? 'bg-black text-white dark:bg-white dark:text-black'
-                  : 'border border-gray-200 dark:border-neutral-800 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-neutral-950'
-              }`}
-            >
-              <CheckSquare size={16} />
-              Задача
-            </button>
-            <button
-              type="button"
-              onClick={() => setType('event')}
-              className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-md text-sm font-medium transition-colors ${
-                type === 'event'
-                  ? 'bg-black text-white dark:bg-white dark:text-black'
-                  : 'border border-gray-200 dark:border-neutral-800 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-neutral-950'
-              }`}
-            >
-              <Clock size={16} />
-              Событие
-            </button>
+        {/* Переключатель типа — только при создании */}
+        {!isEditing && (
+          <div className="px-5 pt-4">
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setType('task')}
+                className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-md text-sm font-medium transition-colors ${
+                  type === 'task'
+                    ? 'bg-black text-white dark:bg-white dark:text-black'
+                    : 'border border-gray-200 dark:border-neutral-800 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-neutral-950'
+                }`}
+              >
+                <CheckSquare size={16} />
+                Задача
+              </button>
+              <button
+                type="button"
+                onClick={() => setType('event')}
+                className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-md text-sm font-medium transition-colors ${
+                  type === 'event'
+                    ? 'bg-black text-white dark:bg-white dark:text-black'
+                    : 'border border-gray-200 dark:border-neutral-800 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-neutral-950'
+                }`}
+              >
+                <Clock size={16} />
+                Событие
+              </button>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Форма */}
         <form onSubmit={handleSubmit} className="px-5 py-4 space-y-4">
@@ -274,7 +324,21 @@ export function CreateItemModal({
           )}
 
           {/* Кнопки */}
-          <div className="flex gap-2 justify-end pt-2">
+          <div className="flex gap-2 pt-2">
+            {isEditing && onDelete && (
+              <button
+                type="button"
+                onClick={handleDelete}
+                disabled={loading}
+                className="flex items-center gap-1.5 px-3 py-2 text-sm rounded-md text-red-600 dark:text-red-400 border border-red-300 dark:border-red-900 hover:bg-red-50 dark:hover:bg-red-950 disabled:opacity-50"
+              >
+                <Trash2 size={14} />
+                Удалить
+              </button>
+            )}
+
+            <div className="flex-1" />
+
             <button
               type="button"
               onClick={onClose}
@@ -287,7 +351,11 @@ export function CreateItemModal({
               disabled={loading || !text.trim()}
               className="px-4 py-2 text-sm rounded-md bg-black text-white dark:bg-white dark:text-black font-medium hover:opacity-80 disabled:opacity-50"
             >
-              {loading ? 'Создаём...' : 'Создать'}
+              {loading
+                ? '...'
+                : isEditing
+                  ? 'Сохранить'
+                  : 'Создать'}
             </button>
           </div>
         </form>
