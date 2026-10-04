@@ -4,9 +4,12 @@ import { createClient } from './supabase/client'
 export type PlannerTask = {
   id: string
   user_id: string
-  date: string          // YYYY-MM-DD
+  date: string
   text: string
-  time: string | null   // "14:00" или null
+  time: string | null
+  end_time: string | null
+  is_event: boolean
+  show_in_calendar: boolean
   done: boolean
   priority: 'none' | 'yellow' | 'red'
   created_at: string
@@ -59,6 +62,9 @@ export async function createTask(
       text: text.trim(),
       time: time ?? null,
       priority,
+      end_time: null,
+      is_event: false,
+      show_in_calendar: false,
     })
     .select()
     .single()

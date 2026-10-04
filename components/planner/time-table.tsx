@@ -1,14 +1,11 @@
 'use client'
 
-import { Plus } from 'lucide-react'
+import { Plus, Clock } from 'lucide-react'
 import type { PlannerTask } from '@/lib/planner'
 
 type TimeTableProps = {
-  /** Все задачи на текущий день */
   tasks: PlannerTask[]
-  /** Клик по часу или кнопке "+" — создать задачу с этим временем */
   onAddAtHour: (hour: string) => void
-  /** Клик по задаче — открыть редактирование (пока ничего) */
   onTaskClick?: (task: PlannerTask) => void
 }
 
@@ -24,12 +21,52 @@ function getHours(): string[] {
   return hours
 }
 
+// Преобразование "HH:MM" в минуты от начала дня.
+// Учитываем, что после полуночи идёт следующий день.
+function timeToMinutes(time: string, baseHour = 6): number {
+  const [h, m] = time.split(':').map(Number)
+  let hours = h
+  if (h < baseHour) hours = 24 + h
+  return hours * 60 + m
+}
+
 export function TimeTable({ tasks, onAddAtHour, onTaskClick }: TimeTableProps) {
   const hours = getHours()
 
-  // Группируем задачи по времени
+  // Собираем карту: какой час перекрыт каким событием
+  // ВАЖНО: end_time ВКЛЮЧИТЕЛЬНО (15:00 = последний час)
+  function getBlockMap() {
+    const map: Record<
+      string,
+      { task: PlannerTask; isStart: boolean } | undefined
+    > = {}
+
+    const events = tasks.filter((t) => t.is_event && t.time)
+
+    for (const ev of events) {
+      const startMin = timeToMinutes(ev.time!)
+      const endMin = ev.end_time
+        ? timeToMinutes(ev.end_time)
+        : startMin + 60 // по умолчанию 1 час
+
+      for (const h of hours) {
+        const hMin = timeToMinutes(h)
+        // <= — потому что end_time ВКЛЮЧИТЕЛЬНО
+        if (hMin >= startMin && hMin <= endMin) {
+          const isStart = h === ev.time
+          map[h] = { task: ev, isStart }
+        }
+      }
+    }
+
+    return map
+  }
+
+  const blockMap = getBlockMap()
+
+  // Задачи (не события) — отдельно, в строке времени
   function getTasksAtHour(hour: string): PlannerTask[] {
-    return tasks.filter((t) => t.time === hour)
+    return tasks.filter((t) => t.time === hour && !t.is_event)
   }
 
   return (
@@ -45,19 +82,57 @@ export function TimeTable({ tasks, onAddAtHour, onTaskClick }: TimeTableProps) {
       <div className="divide-y divide-gray-100 dark:divide-neutral-900">
         {hours.map((hour) => {
           const hourTasks = getTasksAtHour(hour)
-          const hasTasks = hourTasks.length > 0
+          const eventBlock = blockMap[hour]
 
+          // Если в этот час есть событие
+          if (eventBlock) {
+            const ev = eventBlock.task
+            const isStart = eventBlock.isStart
+            const timeLabel = ev.end_time
+              ? `${ev.time}–${ev.end_time}`
+              : ev.time
+
+            return (
+              <div
+                key={hour}
+                className="flex items-stretch min-h-[36px] bg-gray-100 dark:bg-neutral-900"
+              >
+                {/* Время */}
+                <div className="w-16 shrink-0 px-3 py-1 text-xs text-gray-500 dark:text-gray-500 tabular-nums flex items-start">
+                  {hour}
+                </div>
+
+                {/* Тело события */}
+                <div className="flex-1 px-2 py-1 flex items-center gap-2">
+                  {isStart ? (
+                    <div className="flex items-center gap-2 text-sm text-black dark:text-white">
+                      <Clock
+                        size={14}
+                        className="text-gray-500 dark:text-gray-400 shrink-0"
+                      />
+                      <span className="font-medium">{ev.text}</span>
+                      <span className="text-xs text-gray-500 dark:text-gray-500 tabular-nums">
+                        {timeLabel}
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="w-full" />
+                  )}
+                </div>
+              </div>
+            )
+          }
+
+          // Обычный час (без события)
           return (
             <div
               key={hour}
               className="group flex items-stretch min-h-[36px] hover:bg-gray-50 dark:hover:bg-neutral-950"
             >
-              {/* Время */}
               <div className="w-16 shrink-0 px-3 py-1 text-xs text-gray-500 dark:text-gray-500 tabular-nums flex items-start">
                 {hour}
               </div>
 
-              {/* Задачи в этот час */}
               <div className="flex-1 px-2 py-1 flex items-start gap-2 flex-wrap">
                 {hourTasks.map((task) => (
                   <button
@@ -74,7 +149,6 @@ export function TimeTable({ tasks, onAddAtHour, onTaskClick }: TimeTableProps) {
                 ))}
               </div>
 
-              {/* Кнопка "+" (видна при hover или всегда — пока всегда) */}
               <div className="shrink-0 flex items-center pr-2 opacity-0 group-hover:opacity-100 transition-opacity">
                 <button
                   onClick={() => onAddAtHour(hour)}
