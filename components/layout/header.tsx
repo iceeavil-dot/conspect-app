@@ -11,6 +11,7 @@ const tabs = [
   { label: 'Планер', href: '/planner' },
   { label: 'Привычки', href: '/habits' },
   { label: 'Календарь', href: '/calendar' },
+  { label: 'Продуктивность', href: '/productivity' },
 ]
 
 export function Header() {
