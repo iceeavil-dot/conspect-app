@@ -8,6 +8,7 @@ import { Header } from '@/components/layout/header'
 import { TimeTable } from '@/components/planner/time-table'
 import { CreateTaskModal } from '@/components/planner/create-task-modal'
 import { TaskList } from '@/components/planner/task-list'
+import { Diary } from '@/components/planner/diary'
 import {
   getTasksByDate,
   createTask,
@@ -234,9 +235,7 @@ export default function PlannerPage() {
               onDelete={handleDeleteTask}
             />
 
-            <div className="border border-dashed border-gray-300 dark:border-neutral-800 rounded-lg p-6 text-center text-gray-400 dark:text-gray-600">
-              Дневник — следующая часть
-            </div>
+                    <Diary date={formatDate(date)} />
           </div>
         </div>
       </main>
