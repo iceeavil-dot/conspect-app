@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { Header } from '@/components/layout/header'
+import { DonutChart } from '@/components/productivity/donut-chart'
+
 
 type Period = 'day' | 'week' | 'month'
 
@@ -155,14 +157,22 @@ export default function ProductivityPage() {
           </div>
         )}
 
-
-
-        {/* Содержимое — заглушка */}
-        <div className="border border-dashed border-gray-300 dark:border-neutral-800 rounded-lg p-12 text-center text-gray-400 dark:text-gray-600">
-          {period === 'day' && 'График за день — следующая часть'}
-          {period === 'week' && 'График за неделю — следующая часть'}
-          {period === 'month' && 'График за месяц — следующая часть'}
-        </div>
+       {/* Временный тест donut */}
+{period === 'day' && (
+  <div className="flex justify-center">
+    <DonutChart percent={78} habitShare={44} taskShare={34} />
+  </div>
+)}
+{period === 'week' && (
+  <div className="border border-dashed border-gray-300 dark:border-neutral-800 rounded-lg p-12 text-center text-gray-400 dark:text-gray-600">
+    График за неделю — следующая часть
+  </div>
+)}
+{period === 'month' && (
+  <div className="border border-dashed border-gray-300 dark:border-neutral-800 rounded-lg p-12 text-center text-gray-400 dark:text-gray-600">
+    График за месяц — следующая часть
+  </div>
+)}
       </main>
     </div>
   )
