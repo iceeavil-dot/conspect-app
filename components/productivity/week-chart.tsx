@@ -153,4 +153,4 @@ function formatRange(days: PeriodStats[]): string {
     return `${first.getDate()}–${last.getDate()} ${months[first.getMonth()]}`
   }
   return `${first.getDate()} ${months[first.getMonth()]} – ${last.getDate()} ${months[last.getMonth()]}`
-}
+} 

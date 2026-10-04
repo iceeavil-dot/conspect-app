@@ -213,15 +213,33 @@ async function getMonthDaysStats(
   year: number,
   month: number
 ): Promise<PeriodStats[]> {
-  const result: PeriodStats[] = []
   const daysInMonth = new Date(year, month + 1, 0).getDate()
 
+  const today = new Date()
+  const isCurrentMonth =
+    year === today.getFullYear() && month === today.getMonth()
+
+  // Загружаем ТОЛЬКО прошедшие/текущие дни. Будущие — с percent: -1 (нет данных)
+  const promises: Promise<PeriodStats>[] = []
   for (let day = 1; day <= daysInMonth; day++) {
-    const d = new Date(year, month, day)
-    const dateStr = formatDate(d)
-    const stats = await getDayStats(dateStr)
-    result.push({ date: dateStr, percent: stats.totalPercent })
+    const dateStr = formatDate(new Date(year, month, day))
+
+    // Если это текущий месяц и день в будущем — не грузим, помечаем как "нет данных"
+    const isFuture = isCurrentMonth && day > today.getDate()
+
+    if (isFuture) {
+      promises.push(
+        Promise.resolve({ date: dateStr, percent: -1 } as PeriodStats)
+      )
+    } else {
+      promises.push(
+        getDayStats(dateStr).then((stats) => ({
+          date: dateStr,
+          percent: stats.totalPercent,
+        }))
+      )
+    }
   }
 
-  return result
+  return Promise.all(promises)
 }

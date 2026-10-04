@@ -7,13 +7,16 @@ import { createClient } from '@/lib/supabase/client'
 import { Header } from '@/components/layout/header'
 import { DayStatsView } from '@/components/productivity/day-stats'
 import { WeekChart } from '@/components/productivity/week-chart'
+import { MonthChart } from '@/components/productivity/month-chart'
 import {
   getDayStats,
   getPreviousDayStats,
   getStreak,
   getWeekStats,
+  getMonthStats,
   type DayStats,
   type PeriodStats,
+  type MonthStats,
 } from '@/lib/productivity'
 
 type Period = 'day' | 'week' | 'month'
@@ -46,7 +49,6 @@ function formatHumanDate(d: Date): string {
   return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`
 }
 
-// Понедельник недели для даты + смещение
 function getMondayOfWeek(date: Date, offset: number): Date {
   const d = new Date(date)
   d.setHours(0, 0, 0, 0)
@@ -54,6 +56,26 @@ function getMondayOfWeek(date: Date, offset: number): Date {
   const diff = (jsDay + 6) % 7
   d.setDate(d.getDate() - diff + offset * 7)
   return d
+}
+
+const MONTHS_RU_FULL = [
+  'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
+  'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь',
+]
+
+function monthLabelFromOffset(offset: number): string {
+  const today = new Date()
+  let month = today.getMonth() + offset
+  let year = today.getFullYear()
+  while (month < 0) {
+    month += 12
+    year--
+  }
+  while (month > 11) {
+    month -= 12
+    year++
+  }
+  return `${MONTHS_RU_FULL[month]} ${year}`
 }
 
 export default function ProductivityPage() {
@@ -70,6 +92,10 @@ export default function ProductivityPage() {
   const [weekStats, setWeekStats] = useState<PeriodStats[]>([])
   const [weekLoading, setWeekLoading] = useState(false)
   const [weekOffset, setWeekOffset] = useState(0)
+
+  const [monthStats, setMonthStats] = useState<MonthStats | null>(null)
+  const [monthLoading, setMonthLoading] = useState(false)
+  const [monthOffset, setMonthOffset] = useState(0)
 
   useEffect(() => {
     async function check() {
@@ -120,6 +146,31 @@ export default function ProductivityPage() {
     load()
   }, [loading, period, weekOffset])
 
+  // Месяц
+  useEffect(() => {
+    if (loading) return
+    if (period !== 'month') return
+
+    async function load() {
+      setMonthLoading(true)
+      const today = new Date()
+      let year = today.getFullYear()
+      let month = today.getMonth() + monthOffset
+      while (month < 0) {
+        month += 12
+        year--
+      }
+      while (month > 11) {
+        month -= 12
+        year++
+      }
+      const stats = await getMonthStats(year, month)
+      setMonthStats(stats)
+      setMonthLoading(false)
+    }
+    load()
+  }, [loading, period, monthOffset])
+
   function handlePrevDay() {
     const d = new Date(date)
     d.setDate(d.getDate() - 1)
@@ -154,7 +205,6 @@ export default function ProductivityPage() {
           Продуктивность
         </h1>
 
-        {/* Переключатель периода */}
         <div className="flex justify-center mb-6">
           <div className="inline-flex border border-gray-200 dark:border-neutral-800 rounded-full p-1">
             <button
@@ -190,7 +240,7 @@ export default function ProductivityPage() {
           </div>
         </div>
 
-        {/* ─── ДЕНЬ ─── */}
+        {/* ДЕНЬ */}
         {period === 'day' && (
           <>
             <div className="flex items-center justify-center gap-3 mb-8">
@@ -230,7 +280,7 @@ export default function ProductivityPage() {
           </>
         )}
 
-        {/* ─── НЕДЕЛЯ ─── */}
+        {/* НЕДЕЛЯ */}
         {period === 'week' && (
           <>
             <div className="flex items-center justify-center gap-3 mb-8">
@@ -279,11 +329,46 @@ export default function ProductivityPage() {
           </>
         )}
 
-        {/* ─── МЕСЯЦ ─── */}
+        {/* МЕСЯЦ */}
         {period === 'month' && (
-          <div className="border border-dashed border-gray-300 dark:border-neutral-800 rounded-lg p-12 text-center text-gray-400 dark:text-gray-600">
-            График за месяц — следующая часть
-          </div>
+          <>
+            <div className="flex items-center justify-center gap-3 mb-8">
+              <button
+                onClick={() => setMonthOffset(monthOffset - 1)}
+                className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-neutral-800 text-black dark:text-white"
+              >
+                <ChevronLeft size={18} />
+              </button>
+
+              <button
+                onClick={() => setMonthOffset(0)}
+                className="px-4 py-1 rounded-md text-sm font-medium text-black dark:text-white hover:bg-gray-100 dark:hover:bg-neutral-800 min-w-[140px]"
+                title="Текущий месяц"
+              >
+                {monthLabelFromOffset(monthOffset)}
+              </button>
+
+              <button
+                onClick={() => setMonthOffset(monthOffset + 1)}
+                className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-neutral-800 text-black dark:text-white"
+              >
+                <ChevronRight size={18} />
+              </button>
+            </div>
+
+            {monthLoading || !monthStats ? (
+              <div className="text-center text-sm text-gray-400 dark:text-gray-600 py-12">
+                Загрузка...
+              </div>
+            ) : (
+              <MonthChart
+                current={monthStats.current}
+                previous={monthStats.previous}
+                monthLabel={monthLabelFromOffset(monthOffset)}
+                prevMonthLabel={monthLabelFromOffset(monthOffset - 1)}
+              />
+            )}
+          </>
         )}
       </main>
     </div>
