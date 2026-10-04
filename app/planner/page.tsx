@@ -9,6 +9,7 @@ import { TimeTable } from '@/components/planner/time-table'
 import { CreateTaskModal } from '@/components/planner/create-task-modal'
 import { TaskList } from '@/components/planner/task-list'
 import { Diary } from '@/components/planner/diary'
+import { Productivity } from '@/components/planner/productivity'
 import {
   getTasksByDate,
   createTask,
@@ -235,10 +236,15 @@ export default function PlannerPage() {
               onDelete={handleDeleteTask}
             />
 
-                    <Diary date={formatDate(date)} />
-          </div>
-        </div>
-      </main>
+                 <Diary date={formatDate(date)} />
+
+        <Productivity
+          total={tasks.length}
+          done={tasks.filter((t) => t.done).length}
+        />
+      </div>
+    </div>
+  </main>
 
       {/* Модалка создания задачи */}
       <CreateTaskModal
