@@ -6,16 +6,18 @@ import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { Header } from '@/components/layout/header'
 import { DayStatsView } from '@/components/productivity/day-stats'
+import { WeekChart } from '@/components/productivity/week-chart'
 import {
   getDayStats,
   getPreviousDayStats,
   getStreak,
+  getWeekStats,
   type DayStats,
+  type PeriodStats,
 } from '@/lib/productivity'
 
 type Period = 'day' | 'week' | 'month'
 
-// Формат даты → YYYY-MM-DD
 function formatDate(d: Date): string {
   const y = d.getFullYear()
   const m = String(d.getMonth() + 1).padStart(2, '0')
@@ -23,7 +25,6 @@ function formatDate(d: Date): string {
   return `${y}-${m}-${day}`
 }
 
-// Красивое название даты
 function formatHumanDate(d: Date): string {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
@@ -45,6 +46,16 @@ function formatHumanDate(d: Date): string {
   return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`
 }
 
+// Понедельник недели для даты + смещение
+function getMondayOfWeek(date: Date, offset: number): Date {
+  const d = new Date(date)
+  d.setHours(0, 0, 0, 0)
+  const jsDay = d.getDay()
+  const diff = (jsDay + 6) % 7
+  d.setDate(d.getDate() - diff + offset * 7)
+  return d
+}
+
 export default function ProductivityPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(true)
@@ -56,7 +67,10 @@ export default function ProductivityPage() {
   const [streak, setStreak] = useState(0)
   const [statsLoading, setStatsLoading] = useState(false)
 
-  // Проверка авторизации
+  const [weekStats, setWeekStats] = useState<PeriodStats[]>([])
+  const [weekLoading, setWeekLoading] = useState(false)
+  const [weekOffset, setWeekOffset] = useState(0)
+
   useEffect(() => {
     async function check() {
       const supabase = createClient()
@@ -70,7 +84,7 @@ export default function ProductivityPage() {
     check()
   }, [router])
 
-  // Загрузка статистики при смене даты (только для Дня)
+  // День
   useEffect(() => {
     if (loading) return
     if (period !== 'day') return
@@ -90,6 +104,21 @@ export default function ProductivityPage() {
     }
     load()
   }, [date, loading, period])
+
+  // Неделя
+  useEffect(() => {
+    if (loading) return
+    if (period !== 'week') return
+
+    async function load() {
+      setWeekLoading(true)
+      const monday = getMondayOfWeek(new Date(), weekOffset)
+      const days = await getWeekStats(formatDate(monday))
+      setWeekStats(days)
+      setWeekLoading(false)
+    }
+    load()
+  }, [loading, period, weekOffset])
 
   function handlePrevDay() {
     const d = new Date(date)
@@ -121,7 +150,6 @@ export default function ProductivityPage() {
       <Header />
 
       <main className="px-4 md:px-6 py-6 max-w-5xl mx-auto">
-        {/* Заголовок */}
         <h1 className="text-xl font-semibold text-black dark:text-white mb-6">
           Продуктивность
         </h1>
@@ -162,55 +190,93 @@ export default function ProductivityPage() {
           </div>
         </div>
 
-        {/* Навигация по датам — только для Дня */}
+        {/* ─── ДЕНЬ ─── */}
         {period === 'day' && (
-          <div className="flex items-center justify-center gap-3 mb-6">
-            <button
-              onClick={handlePrevDay}
-              className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-neutral-800 text-black dark:text-white"
-            >
-              <ChevronLeft size={18} />
-            </button>
+          <>
+            <div className="flex items-center justify-center gap-3 mb-8">
+              <button
+                onClick={handlePrevDay}
+                className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-neutral-800 text-black dark:text-white"
+              >
+                <ChevronLeft size={18} />
+              </button>
 
-            <button
-              onClick={handleToday}
-              className="px-4 py-1 rounded-md text-sm font-medium text-black dark:text-white hover:bg-gray-100 dark:hover:bg-neutral-800 min-w-[110px]"
-              title="Перейти к сегодня"
-            >
-              {formatHumanDate(date)}
-            </button>
+              <button
+                onClick={handleToday}
+                className="px-4 py-1 rounded-md text-sm font-medium text-black dark:text-white hover:bg-gray-100 dark:hover:bg-neutral-800 min-w-[110px]"
+              >
+                {formatHumanDate(date)}
+              </button>
 
-            <button
-              onClick={handleNextDay}
-              className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-neutral-800 text-black dark:text-white"
-            >
-              <ChevronRight size={18} />
-            </button>
-          </div>
+              <button
+                onClick={handleNextDay}
+                className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-neutral-800 text-black dark:text-white"
+              >
+                <ChevronRight size={18} />
+              </button>
+            </div>
+
+            {statsLoading || !stats ? (
+              <div className="text-center text-sm text-gray-400 dark:text-gray-600 py-12">
+                Загрузка...
+              </div>
+            ) : stats.habitsTotal + stats.tasksTotal === 0 ? (
+              <div className="text-center text-sm text-gray-400 dark:text-gray-600 py-12">
+                Нет данных за этот день. Добавь привычки или задачи.
+              </div>
+            ) : (
+              <DayStatsView stats={stats} prevStats={prevStats} streak={streak} />
+            )}
+          </>
         )}
-
-      {/* ─── ДЕНЬ ─── */}
-{period === 'day' && (
-  <>
-    {statsLoading || !stats ? (
-      <div className="text-center text-sm text-gray-400 dark:text-gray-600 py-12">
-        Загрузка...
-      </div>
-    ) : stats.habitsTotal + stats.tasksTotal === 0 ? (
-      <div className="text-center text-sm text-gray-400 dark:text-gray-600 py-12">
-        Нет данных за этот день. Добавь привычки или задачи.
-      </div>
-    ) : (
-      <DayStatsView stats={stats} prevStats={prevStats} streak={streak} />
-    )}
-  </>
-)}
 
         {/* ─── НЕДЕЛЯ ─── */}
         {period === 'week' && (
-          <div className="border border-dashed border-gray-300 dark:border-neutral-800 rounded-lg p-12 text-center text-gray-400 dark:text-gray-600">
-            График за неделю — следующая часть
-          </div>
+          <>
+            <div className="flex items-center justify-center gap-3 mb-8">
+              <button
+                onClick={() => setWeekOffset(weekOffset - 1)}
+                className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-neutral-800 text-black dark:text-white"
+              >
+                <ChevronLeft size={18} />
+              </button>
+
+              <button
+                onClick={() => setWeekOffset(0)}
+                className="px-4 py-1 rounded-md text-sm font-medium text-black dark:text-white hover:bg-gray-100 dark:hover:bg-neutral-800 min-w-[110px]"
+                title="Текущая неделя"
+              >
+                {weekOffset === 0
+                  ? 'Эта неделя'
+                  : weekOffset === -1
+                    ? 'Прошлая'
+                    : weekOffset === 1
+                      ? 'Следующая'
+                      : weekOffset < 0
+                        ? `${Math.abs(weekOffset)} нед. назад`
+                        : `+${weekOffset} нед.`}
+              </button>
+
+              <button
+                onClick={() => setWeekOffset(weekOffset + 1)}
+                className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-neutral-800 text-black dark:text-white"
+              >
+                <ChevronRight size={18} />
+              </button>
+            </div>
+
+            {weekLoading ? (
+              <div className="text-center text-sm text-gray-400 dark:text-gray-600 py-12">
+                Загрузка...
+              </div>
+            ) : weekStats.length === 0 ? (
+              <div className="text-center text-sm text-gray-400 dark:text-gray-600 py-12">
+                Нет данных за эту неделю.
+              </div>
+            ) : (
+              <WeekChart days={weekStats} todayStr={formatDate(new Date())} />
+            )}
+          </>
         )}
 
         {/* ─── МЕСЯЦ ─── */}
