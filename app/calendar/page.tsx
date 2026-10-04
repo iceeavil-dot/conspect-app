@@ -5,7 +5,13 @@ import { useRouter } from 'next/navigation'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { Header } from '@/components/layout/header'
-import { getMonthItems, type CalendarItem } from '@/lib/calendar'
+import {
+  getMonthItems,
+  createEvent,
+  createCalendarTask,
+  type CalendarItem,
+} from '@/lib/calendar'
+import { CreateItemModal } from '@/components/calendar/create-item-modal'
 
 const MONTHS_RU_FULL = [
   'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
@@ -38,6 +44,10 @@ export default function CalendarPage() {
   const [items, setItems] = useState<CalendarItem[]>([])
   const [itemsLoading, setItemsLoading] = useState(false)
 
+  const [modalOpen, setModalOpen] = useState(false)
+  const [selectedDate, setSelectedDate] = useState<string>('')
+
+  // Проверка авторизации
   useEffect(() => {
     async function check() {
       const supabase = createClient()
@@ -51,6 +61,7 @@ export default function CalendarPage() {
     check()
   }, [router])
 
+  // Загрузка данных за месяц
   const load = useCallback(async () => {
     setItemsLoading(true)
     const data = await getMonthItems(year, month)
@@ -85,6 +96,33 @@ export default function CalendarPage() {
     const today = new Date()
     setYear(today.getFullYear())
     setMonth(today.getMonth())
+  }
+
+  function handleDayClick(dateStr: string) {
+    setSelectedDate(dateStr)
+    setModalOpen(true)
+  }
+
+  async function handleCreateEvent(
+    text: string,
+    time: string,
+    endTime: string
+  ) {
+    const item = await createEvent(selectedDate, text, time, endTime)
+    if (item) {
+      setItems((prev) => [...prev, item])
+    }
+  }
+
+  async function handleCreateTask(
+    text: string,
+    time: string | null,
+    priority: 'none' | 'yellow' | 'red'
+  ) {
+    const item = await createCalendarTask(selectedDate, text, time, priority)
+    if (item) {
+      setItems((prev) => [...prev, item])
+    }
   }
 
   if (loading) {
@@ -189,6 +227,7 @@ export default function CalendarPage() {
                 return (
                   <div
                     key={di}
+                    onClick={() => handleDayClick(dateStr)}
                     className="min-h-[110px] p-2 border-r-2 border-gray-300 dark:border-neutral-700 last:border-r-0 hover:bg-gray-50 dark:hover:bg-neutral-950 transition-colors cursor-pointer"
                   >
                     {/* Число */}
@@ -236,6 +275,15 @@ export default function CalendarPage() {
             </div>
           ))}
         </div>
+
+        {/* Модалка создания */}
+        <CreateItemModal
+          open={modalOpen}
+          date={selectedDate}
+          onClose={() => setModalOpen(false)}
+          onCreateEvent={handleCreateEvent}
+          onCreateTask={handleCreateTask}
+        />
 
         {/* Индикатор загрузки */}
         {itemsLoading && (
