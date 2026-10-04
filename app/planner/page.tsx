@@ -105,19 +105,16 @@ export default function PlannerPage() {
     setDate(new Date())
   }
 
-  // Открыть модалку с предустановленным временем
   function handleAddAtHour(hour: string) {
     setPresetTime(hour)
     setModalOpen(true)
   }
 
-  // Открыть модалку без времени
   function handleAddEmpty() {
     setPresetTime(null)
     setModalOpen(true)
   }
 
-  // Создание задачи
   async function handleCreateTask(text: string, time: string | null) {
     const dateStr = formatDate(date)
     const newTask = await createTask(dateStr, text, time)
@@ -126,7 +123,6 @@ export default function PlannerPage() {
     }
   }
 
-  // Переключить done
   async function handleToggleDone(id: string, done: boolean) {
     setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, done } : t)))
     const ok = await toggleTaskDone(id, done)
@@ -135,7 +131,6 @@ export default function PlannerPage() {
     }
   }
 
-  // Циклическое переключение приоритета: none → yellow → red → none
   async function handleCyclePriority(
     id: string,
     current: 'none' | 'yellow' | 'red'
@@ -154,7 +149,6 @@ export default function PlannerPage() {
     }
   }
 
-  // Удаление с подтверждением
   async function handleDeleteTask(id: string, text: string) {
     const confirmed = window.confirm(`Удалить задачу «${text}»?`)
     if (!confirmed) return
@@ -227,7 +221,7 @@ export default function PlannerPage() {
             <TimeTable tasks={tasks} onAddAtHour={handleAddAtHour} />
           </div>
 
-          {/* Правая колонка: To-do + Дневник */}
+          {/* Правая колонка: To-do → Продуктивность → Дневник */}
           <div className="flex flex-col gap-4">
             <TaskList
               tasks={tasks}
@@ -236,15 +230,15 @@ export default function PlannerPage() {
               onDelete={handleDeleteTask}
             />
 
-                 <Diary date={formatDate(date)} />
+            <Productivity
+              total={tasks.length}
+              done={tasks.filter((t) => t.done).length}
+            />
 
-        <Productivity
-          total={tasks.length}
-          done={tasks.filter((t) => t.done).length}
-        />
-      </div>
-    </div>
-  </main>
+            <Diary date={formatDate(date)} />
+          </div>
+        </div>
+      </main>
 
       {/* Модалка создания задачи */}
       <CreateTaskModal
