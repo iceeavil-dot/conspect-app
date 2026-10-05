@@ -27,13 +27,6 @@ export default function NotesPage() {
     })
   }, [router])
 
-  async function handleLogout() {
-    const supabase = createClient()
-    await supabase.auth.signOut()
-    router.push('/login')
-    router.refresh()
-  }
-
   async function handleCreateNote(
   title: string,
   template: TemplateType,
