@@ -2,12 +2,36 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, Star, Check } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { NoteCanvas } from '@/components/editor/note-canvas'
 import { PageNavigator } from '@/components/editor/page-navigator'
-import { parseCanvasData, serializeCanvasData, createEmptyPage } from '@/lib/notes/pages'
+import {
+  parseCanvasData,
+  serializeCanvasData,
+  createEmptyPage,
+} from '@/lib/notes/pages'
 import { CanvasData, NotePage, PageTemplate } from '@/lib/notes/types'
+
+// ─────────────────────────────────────────────────────────────
+// Тип заметки
+// ─────────────────────────────────────────────────────────────
+
+type Note = {
+  id: string
+  title: string
+  content: string
+  canvas_data: string | null
+  cover_url: string | null
+  template: 'blank' | 'grid' | 'lines' | 'dots' | 'custom'
+  template_url: string | null
+  is_favorite: boolean
+  updated_at: string
+}
+
+// ─────────────────────────────────────────────────────────────
+// Компонент
+// ─────────────────────────────────────────────────────────────
 
 export default function NoteEditorPage() {
   const router = useRouter()
@@ -16,13 +40,17 @@ export default function NoteEditorPage() {
 
   const lastSnapshotRef = useRef<string>('')
 
-  const [loading, setLoading] = useState(true)
+  const [note, setNote] = useState<Note | null>(null)
   const [title, setTitle] = useState('')
   const [canvasData, setCanvasData] = useState<CanvasData>({
     pages: [createEmptyPage(0)],
     currentPage: 0,
   })
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [savedAt, setSavedAt] = useState<Date | null>(null)
 
+  // Загрузка заметки
   useEffect(() => {
     async function load() {
       const supabase = createClient()
@@ -37,6 +65,7 @@ export default function NoteEditorPage() {
         return
       }
 
+      setNote(data)
       setTitle(data.title)
       setCanvasData(parseCanvasData(data.canvas_data))
       setLoading(false)
@@ -44,21 +73,52 @@ export default function NoteEditorPage() {
     load()
   }, [noteId, router])
 
+  // Сохранение
   const save = useCallback(
     async (data: CanvasData) => {
       if (!noteId) return
+      setSaving(true)
       const supabase = createClient()
-      await supabase
+      const { error } = await supabase
         .from('notes')
         .update({
           canvas_data: serializeCanvasData(data),
           updated_at: new Date().toISOString(),
         })
         .eq('id', noteId)
+
+      if (!error) {
+        setSavedAt(new Date())
+      }
+      setSaving(false)
     },
     [noteId]
   )
 
+  // Автосохранение
+  useEffect(() => {
+    if (loading || !note) return
+    const timer = setTimeout(() => {
+      save(canvasData)
+    }, 1500)
+    return () => clearTimeout(timer)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canvasData, loading])
+
+  // Переключение избранного
+  async function toggleFavorite() {
+    if (!note) return
+    const newValue = !note.is_favorite
+    setNote({ ...note, is_favorite: newValue })
+
+    const supabase = createClient()
+    await supabase
+      .from('notes')
+      .update({ is_favorite: newValue })
+      .eq('id', note.id)
+  }
+
+  // Обновление snapshot текущей страницы
   function handleCanvasChange(snapshot: any) {
     const serialized = JSON.stringify(snapshot)
     if (serialized === lastSnapshotRef.current) return
@@ -66,26 +126,18 @@ export default function NoteEditorPage() {
 
     setCanvasData((prev) => {
       const pages = [...prev.pages]
-      pages[prev.currentPage] = {
-        ...pages[prev.currentPage],
+      const currentIdx = prev.currentPage
+      pages[currentIdx] = {
+        ...pages[currentIdx],
         snapshot,
       }
       return { ...prev, pages }
     })
   }
 
-  // Автосохранение
-  useEffect(() => {
-    if (loading) return
-    const timer = setTimeout(() => {
-      save(canvasData)
-    }, 1500)
-    return () => clearTimeout(timer)
-  }, [canvasData, loading, save])
-
   // Переключение страниц
   function handlePrevPage() {
-    lastSnapshotRef.current = ''  // сброс защиты — другая страница
+    lastSnapshotRef.current = ''
     setCanvasData((prev) => ({
       ...prev,
       currentPage: Math.max(0, prev.currentPage - 1),
@@ -112,38 +164,80 @@ export default function NoteEditorPage() {
     })
   }
 
-  if (loading) return <div style={{ padding: 20 }}>Загрузка...</div>
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-white dark:bg-black">
+        <p className="text-gray-500 dark:text-gray-400">Загрузка...</p>
+      </div>
+    )
+  }
 
-  const currentPage: NotePage | undefined = canvasData.pages[canvasData.currentPage]
+  const currentPage: NotePage | undefined =
+    canvasData.pages[canvasData.currentPage]
 
-if (!currentPage) {
-  console.log('=== currentPage undefined ===')
-  console.log('pages.length:', canvasData.pages.length)
-  console.log('currentPage index:', canvasData.currentPage)
-  console.log('full canvasData:', JSON.stringify(canvasData).substring(0, 500))
-  return <div style={{ padding: 20 }}>Ошибка загрузки страницы</div>
-}
+  if (!currentPage) {
+    return <div style={{ padding: 20 }}>Ошибка загрузки страницы</div>
+  }
+
   return (
     <div className="min-h-screen bg-white dark:bg-black flex flex-col">
-      <header className="flex items-center justify-between px-4 h-14 border-b border-gray-200 dark:border-neutral-800">
+      {/* Верхняя панель */}
+      <header className="flex items-center justify-between px-4 md:px-6 h-14 border-b border-gray-200 dark:border-neutral-800 gap-2">
         <button
           onClick={() => router.push('/notes')}
-          className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-neutral-800"
+          className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-neutral-800 text-black dark:text-white flex-shrink-0"
+          title="Назад"
         >
           <ArrowLeft size={20} />
         </button>
-        <span className="text-sm font-medium">{title}</span>
-        <div style={{ width: 40 }} />
+
+        <input
+          type="text"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="Название заметки"
+          className="flex-1 max-w-md mx-auto text-center text-base font-medium bg-transparent text-black dark:text-white placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none"
+        />
+
+        <div className="flex items-center gap-3 flex-shrink-0">
+          <div className="text-xs text-gray-500 dark:text-gray-400 min-w-[80px] text-right">
+            {saving && <span>Сохранение…</span>}
+            {!saving && savedAt && (
+              <span className="inline-flex items-center gap-1">
+                <Check size={12} /> Сохранено
+              </span>
+            )}
+          </div>
+
+          <button
+            onClick={toggleFavorite}
+            className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-neutral-800"
+            title="Избранное"
+          >
+            <Star
+              size={20}
+              className={
+                note?.is_favorite
+                  ? 'text-yellow-500 fill-yellow-500'
+                  : 'text-gray-400 dark:text-gray-500'
+              }
+            />
+          </button>
+        </div>
       </header>
 
+      {/* Область холста */}
       <main className="overflow-hidden" style={{ height: 'calc(100vh - 56px - 100px)' }}>
-      <NoteCanvas
-  key={currentPage.id}
-  page={currentPage}
-  onChange={handleCanvasChange}
-/>
-</main>
+        <NoteCanvas
+          key={currentPage.id}
+          page={currentPage}
+          onChange={handleCanvasChange}
+          template={note?.template}
+          templateUrl={note?.template_url}
+        />
+      </main>
 
+      {/* Панель страниц */}
       <PageNavigator
         data={canvasData}
         onPrevPage={handlePrevPage}

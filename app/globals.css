@@ -33,3 +33,18 @@ body {
   scrollbar-width: none;
   -ms-overflow-style: none;
 }
+/* Прозрачный фон tldraw — чтобы шаблон просвечивал */
+.tldraw-wrapper .tl-container,
+.tldraw-wrapper .tl-background {
+  background: transparent !important;
+}
+
+.dark .tldraw-wrapper .tl-container,
+.dark .tldraw-wrapper .tl-background {
+  background: transparent !important;
+}
+
+/* Убираем и цвет самого canvas */
+.tldraw-wrapper .tl-canvas {
+  background: transparent !important;
+}
