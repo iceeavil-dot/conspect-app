@@ -8,6 +8,7 @@ import { Header } from '@/components/layout/header'
 import { NotesGrid } from '@/components/notes/notes-grid'
 import { CreateNoteModal } from '@/components/notes/create-note-modal'
 import { createNote } from '@/lib/notes'
+import type { TemplateType } from '@/components/notes/templates/template-preview'
 
 export default function NotesPage() {
   const router = useRouter()
@@ -33,13 +34,17 @@ export default function NotesPage() {
     router.refresh()
   }
 
-  async function handleCreateNote(title: string) {
-    const note = await createNote(title)
-    if (note) {
-      // Заставляем сетку перезагрузиться
-      setRefreshKey((k) => k + 1)
-    }
+  async function handleCreateNote(
+  title: string,
+  template: TemplateType,
+  templateUrl: string | null,
+  coverUrl: string | null
+) {
+  const note = await createNote(title, template, templateUrl, coverUrl)
+  if (note) {
+    setRefreshKey((k) => k + 1)
   }
+}
 
   return (
     <div className="min-h-screen bg-white dark:bg-black">
