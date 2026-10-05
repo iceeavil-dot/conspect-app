@@ -81,7 +81,6 @@ export function CreateTaskModal({
               type="text"
               value={text}
               onChange={(e) => setText(e.target.value)}
-              placeholder="Например: Позвонить маме"
               autoFocus
               className="w-full px-3 py-2 border border-gray-300 dark:border-neutral-700 rounded-md bg-white dark:bg-neutral-950 text-black dark:text-white focus:outline-none focus:border-black dark:focus:border-white"
             />

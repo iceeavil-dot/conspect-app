@@ -55,12 +55,6 @@ export default function NotesPage() {
           <h1 className="text-xl font-semibold text-black dark:text-white">
             Привет, {displayName}
           </h1>
-          <button
-            onClick={handleLogout}
-            className="text-sm text-gray-600 dark:text-gray-400 hover:text-black dark:hover:text-white"
-          >
-            Выйти
-          </button>
         </div>
 
         <NotesGrid key={refreshKey} />

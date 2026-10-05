@@ -1,10 +1,11 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { useTheme } from 'next-themes'
 import { useEffect, useState } from 'react'
-import { Settings, Moon, Sun, Search, User } from 'lucide-react'
+import { Moon, Sun, LogOut } from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
 
 const tabs = [
   { label: 'Заметки', href: '/notes' },
@@ -16,42 +17,50 @@ const tabs = [
 
 export function Header() {
   const pathname = usePathname()
+  const router = useRouter()
   const { theme, setTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
 
-  // Чтобы не было ошибки гидратации при SSR
   useEffect(() => {
     setMounted(true)
   }, [])
 
   const isDark = mounted && theme === 'dark'
 
-  return (
-    <header className="w-full border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-black">
-      <div className="flex items-center justify-between gap-4 px-4 md:px-6 h-14">
-        {/* Левая часть: настройки + тема */}
-        <div className="flex items-center gap-2">
-          <Link
-            href="/settings"
-            className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-900 text-black dark:text-white"
-            title="Настройки"
-          >
-            <Settings size={20} />
-          </Link>
+  async function handleLogout() {
+    const supabase = createClient()
+    await supabase.auth.signOut()
+    router.push('/login')
+    router.refresh()
+  }
 
+  return (
+    <header className="w-full border-b border-gray-200 dark:border-neutral-800 bg-white dark:bg-black">
+      <div className="flex items-center justify-between gap-4 px-4 md:px-6 h-14">
+        {/* Левая часть: переключатель темы */}
+        <div className="flex items-center gap-2">
           <button
             onClick={() => setTheme(isDark ? 'light' : 'dark')}
-            className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-900 text-black dark:text-white"
+            className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-neutral-900 text-black dark:text-white"
             title="Переключить тему"
           >
-            {mounted ? (isDark ? <Sun size={20} /> : <Moon size={20} />) : <Moon size={20} />}
+            {mounted ? (
+              isDark ? (
+                <Sun size={20} />
+              ) : (
+                <Moon size={20} />
+              )
+            ) : (
+              <Moon size={20} />
+            )}
           </button>
         </div>
 
         {/* Центр: вкладки */}
         <nav className="flex items-center gap-1 rounded-full border border-gray-200 dark:border-gray-800 px-1 py-1">
           {tabs.map((tab) => {
-            const active = pathname === tab.href || pathname.startsWith(tab.href + '/')
+            const active =
+              pathname === tab.href || pathname.startsWith(tab.href + '/')
             return (
               <Link
                 key={tab.href}
@@ -69,21 +78,15 @@ export function Header() {
           })}
         </nav>
 
-        {/* Правая часть: поиск + профиль */}
+        {/* Правая часть: выход */}
         <div className="flex items-center gap-2">
           <button
-            className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-900 text-black dark:text-white"
-            title="Поиск"
+            onClick={handleLogout}
+            className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-neutral-900 text-black dark:text-white"
+            title="Выйти"
           >
-            <Search size={20} />
+            <LogOut size={20} />
           </button>
-          <Link
-            href="/profile"
-            className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-900 text-black dark:text-white"
-            title="Профиль"
-          >
-            <User size={20} />
-          </Link>
         </div>
       </div>
     </header>
