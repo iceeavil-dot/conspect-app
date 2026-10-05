@@ -4,6 +4,7 @@ import { Star } from 'lucide-react'
 import { NoteCardMenu } from './note-card-menu'
 
 type NoteCardProps = {
+  noteId: string
   title: string
   date: string
   coverUrl?: string | null
@@ -12,10 +13,12 @@ type NoteCardProps = {
   onRename?: () => void
   onDuplicate?: () => void
   onDelete?: () => void
+  onCoverChange?: (newUrl: string | null) => void
   onClick?: () => void
 }
 
 export function NoteCard({
+  noteId,
   title,
   date,
   coverUrl,
@@ -24,6 +27,7 @@ export function NoteCard({
   onRename,
   onDuplicate,
   onDelete,
+  onCoverChange,
   onClick,
 }: NoteCardProps) {
   function handleFavoriteClick(e: React.MouseEvent) {
@@ -73,9 +77,12 @@ export function NoteCard({
         </h3>
 
         <NoteCardMenu
+          noteId={noteId}
+          currentCoverUrl={coverUrl ?? null}
           onRename={onRename ?? (() => {})}
           onDuplicate={onDuplicate ?? (() => {})}
           onDelete={onDelete ?? (() => {})}
+          onCoverChange={onCoverChange ?? (() => {})}
         />
       </div>
 

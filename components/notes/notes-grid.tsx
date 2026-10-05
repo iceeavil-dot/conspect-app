@@ -111,18 +111,24 @@ export function NotesGrid() {
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-5">
       {notes.map((note) => (
-        <NoteCard
-          key={note.id}
-          title={note.title}
-          date={formatDate(note.created_at)}
-          coverUrl={note.cover_url}
-          isFavorite={note.is_favorite}
-          onToggleFavorite={() => handleToggleFavorite(note.id)}
-          onRename={() => handleRename(note.id, note.title)}
-          onDuplicate={() => handleDuplicate(note.id)}
-          onDelete={() => handleDelete(note.id, note.title)}
-          onClick={() => router.push(`/notes/${note.id}`)}
-        />
+      <NoteCard
+  key={note.id}
+  noteId={note.id}
+  title={note.title}
+  date={formatDate(note.created_at)}
+  coverUrl={note.cover_url}
+  isFavorite={note.is_favorite}
+  onToggleFavorite={() => handleToggleFavorite(note.id)}
+  onRename={() => handleRename(note.id, note.title)}
+  onDuplicate={() => handleDuplicate(note.id)}
+  onDelete={() => handleDelete(note.id, note.title)}
+  onCoverChange={(newUrl) => {
+    setNotes((prev) =>
+      prev.map((n) => (n.id === note.id ? { ...n, cover_url: newUrl } : n))
+    )
+  }}
+  onClick={() => router.push(`/notes/${note.id}`)}
+/>
       ))}
     </div>
   )
